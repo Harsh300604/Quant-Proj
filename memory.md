@@ -3,7 +3,7 @@
 Short, factual and always up to date. Update it at the end of every phase or work block, before pushing.
 History belongs in `decisions.md`; the plan lives in `implementation_plan.md`.
 
-_Last updated: 2026-11-04 (end of the Phase 1 build)._
+_Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
 
 ## Where we are
 
@@ -13,8 +13,8 @@ _Last updated: 2026-11-04 (end of the Phase 1 build)._
 | Current phase | **Phase 1: Setup, config and downloaders.** Built; 61 tests pass; **waiting for the user's manual checks on the laptop** |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Phase 1 code, tests, README (key swap checklist) pushed |
-| Next step | User runs Phase 1 manual checks 1–6 (setup, check_env, pytest, pilot download, membership spot-check, full download). On confirmation, tick the last Phase 1 box and start Phase 2 |
+| Last step | User passed manual checks 1–3. Pilot download (check 4) worked except membership before ~2018 (parser); parser fixed, 64 tests pass |
+| Next step | User does `git pull`, reruns `run_all --pilot` (membership pages are cached, so it's fast). If snapshots still need review, user sends the `membership --diagnose` output. Then checks 5–6 |
 
 ## Spend so far
 
@@ -57,4 +57,5 @@ _Last updated: 2026-11-04 (end of the Phase 1 build)._
 
 ## Open questions waiting on the user
 
-- Results of the Phase 1 manual checks (especially: does Alpaca's free plan return news? how many tickers have no Yahoo/SEC data?).
+- Pilot rerun result after the parser fix; later, the missing-ticker counts from the full download.
+- `ANTHROPIC_API_KEY` is still empty in the laptop `.env` (not needed until Phase 3).

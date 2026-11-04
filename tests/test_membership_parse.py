@@ -16,7 +16,7 @@ def test_parse_table():
 
 def test_parse_list_fallback():
     tickers, method = parse_members(wiki_list_html(BASE_MEMBERS + ["AAPL"]))
-    assert method == "list" and len(tickers) == 99
+    assert method == "paren" and len(tickers) == 99
 
 
 def test_parse_implausible_count_fails():
@@ -82,3 +82,26 @@ def test_changes_between():
     spells, _ = build_spells(snaps)
     ch = changes_between(spells, date(2015, 1, 1), date(2015, 12, 31))
     assert list(zip(ch["ticker"], ch["change"])) == [("NEW", "added"), ("OLD", "removed")]
+
+
+def test_parse_old_two_column_link_layout():
+    from tests.fixtures.samples import wiki_old_columns_html
+    members = BASE_MEMBERS + ["AAPL", "BRK.B"]
+    history = [f"H{chr(65 + i)}X" for i in range(20)]
+    tickers, method = parse_members(wiki_old_columns_html(members, history))
+    assert method == "link"
+    assert len(tickers) == 100 and "BRK-B" in tickers
+    assert not set(history) & set(tickers)      # past-changes list is kept out
+
+
+def test_parse_paren_inside_table_cells():
+    from tests.fixtures.samples import wiki_paren_cells_html
+    history = [f"H{chr(65 + i)}X" for i in range(20)]
+    tickers, method = parse_members(wiki_paren_cells_html(BASE_MEMBERS + ["AAPL", "MSFT"], history))
+    assert method == "paren" and len(tickers) == 100 and not set(history) & set(tickers)
+
+
+def test_diagnose_describes_layout():
+    from quantagents.data.download.membership import diagnose
+    out = diagnose(wiki_table_html(BASE_MEMBERS[:10] + ["AAPL"]).replace("Company AAPL", "Apple Inc."))
+    assert "tables:" in out and "Apple" in out

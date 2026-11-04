@@ -79,3 +79,24 @@ def french_zip(daily: bool) -> bytes:
 
 
 FRED_CSV = "observation_date,DTB3\n2015-01-02,0.03\n2015-01-05,0.03\n2015-01-06,\n"
+
+
+def wiki_old_columns_html(tickers: list[str], history: list[str]) -> str:
+    """Older layout: two-column list, 'Company (NASDAQ: XXX)' with nasdaq.com links,
+    followed by a list of past changes that also mentions tickers."""
+    half = len(tickers) // 2
+    def ul(ts):
+        return "<ul>" + "".join(
+            f"<li><a href='/wiki/{t}'>Company {t}</a> (NASDAQ: "
+            f"<a class='external text' href='http://www.nasdaq.com/symbol/{t.lower()}'>{t}</a>)</li>"
+            for t in ts) + "</ul>"
+    hist = "<ul>" + "".join(f"<li>Removed Old {t} ({t})</li>" for t in history) + "</ul>"
+    return (f"<div><h2>Components</h2><div class='div-col columns column-width'>{ul(tickers[:half])}"
+            f"{ul(tickers[half:])}</div><h2>Changes</h2>{hist}</div>")
+
+
+def wiki_paren_cells_html(tickers: list[str], history: list[str]) -> str:
+    """Layout with tickers only inside the company cell, no ticker column."""
+    rows = "".join(f"<tr><td>Company {t} ({t})</td><td>Tech</td></tr>" for t in tickers)
+    hist = "<p>" + " ".join(f"Former member ({t})." for t in history) + "</p>"
+    return f"<div><table><tr><th>Company</th><th>Sector</th></tr>{rows}</table>{hist}</div>"

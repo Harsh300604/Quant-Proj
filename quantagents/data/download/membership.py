@@ -4,7 +4,7 @@ Method (decision D2):
 1. For every snapshot time (by default the 1st and 15th of each month, 00:00 UTC) ask the
    MediaWiki API which revision of the "Nasdaq-100" article was current at that moment.
 2. Download that revision's HTML once per revision (gzipped) and parse the member tickers
-   from the components table (fallback: "Company (TICKER)" list items).
+   (see ``parse_members``: components table, nasdaq.com links, or "(TICKER)" text).
 3. Snapshots whose member count is implausible are flagged ``needs_review``.
 4. ``build_spells`` turns snapshots into membership spells (ticker, start, end) and applies
    hand corrections from ``reference/ndx_changes_manual.csv`` (exact effective dates from
@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 
 API_URL = "https://en.wikipedia.org/w/api.php"
 ARTICLE = "Nasdaq-100"
-USER_AGENT = "QuantAgents-research/0.1 (academic backtest; python-requests)"
+USER_AGENT = "QuantAgents-research/0.1 (academic backtest; https://github.com/Harsh300604/Quant-Proj) python-requests"
 MIN_MEMBERS, MAX_MEMBERS = 95, 110
 REFERENCE = REPO_ROOT / "reference"
 
@@ -63,35 +63,114 @@ def clean_ticker(raw: str) -> str | None:
     return t if t and _TICKER_OK.match(t) else None
 
 
-def parse_members(html: str) -> tuple[list[str], str]:
-    """Return (sorted tickers, method). Method is 'table', 'list' or 'failed'."""
+_NASDAQ_HREF = re.compile(
+    r"nasdaq\.com/(?:symbol|market-activity/stocks|quotes?)/([A-Za-z]{1,5}(?:[.\-][A-Za-z])?)(?:[/?#]|$)", re.I)
+_CONTAINERS = ("table", "ul", "ol", "div", "dl")
+
+
+def _in_range(n: int) -> bool:
+    return MIN_MEMBERS <= n <= MAX_MEMBERS
+
+
+def _table_column_tickers(html: str) -> list[str]:
+    """Tickers from a table with a 'Ticker'/'Symbol' column (current article layout)."""
     best: list[str] = []
     try:
         tables = pd.read_html(StringIO(html), flavor="lxml")
     except (ValueError, ImportError):  # no <table> in this revision
-        tables = []
+        return best
     for tbl in tables:
         cols = [c for c in tbl.columns if _TICKER_COL.search(" ".join(map(str, c))
                                                             if isinstance(c, tuple) else str(c))]
         if not cols:
             continue
         tickers = sorted({t for t in (clean_ticker(v) for v in tbl[cols[0]].dropna()) if t})
-        if MIN_MEMBERS <= len(tickers) <= MAX_MEMBERS and \
-                abs(len(tickers) - 100) < abs(len(best) - 100 if best else 999):
+        if _in_range(len(tickers)) and abs(len(tickers) - 100) < abs(len(best) - 100 if best else 999):
             best = tickers
-    if best:
-        return best, "table"
-    items = re.findall(r"<li[^>]*>(.*?)</li>", html, flags=re.S | re.I)
+    return best
+
+
+def _href_tickers(el) -> set[str]:
     found = set()
-    for it in items:
-        text = re.sub(r"<[^>]+>", "", it)
-        for m in _PAREN_TICKER.findall(text):
-            t = clean_ticker(m)
+    for a in el.iter("a"):
+        m = _NASDAQ_HREF.search(a.get("href") or "")
+        if m:
+            t = clean_ticker(m.group(1))
             if t:
                 found.add(t)
-    if MIN_MEMBERS <= len(found) <= MAX_MEMBERS:
-        return sorted(found), "list"
+    return found
+
+
+def _paren_tickers(el) -> set[str]:
+    return {t for t in (clean_ticker(m) for m in _PAREN_TICKER.findall(el.text_content())) if t}
+
+
+def _best_container(root, extract) -> list[str]:
+    """Tightest single element (list, table or column block) whose tickers number 95-110.
+
+    Using the tightest container keeps out tickers mentioned elsewhere on the page,
+    e.g. in lists of past additions and removals.
+    """
+    best, best_size = None, None
+    for el in root.iter(*_CONTAINERS):
+        found = extract(el)
+        if not _in_range(len(found)):
+            continue
+        size = len(el.text_content())
+        if best is None or size < best_size or (size == best_size and abs(len(found) - 100) < abs(len(best) - 100)):
+            best, best_size = found, size
+    return sorted(best) if best else []
+
+
+def parse_members(html: str) -> tuple[list[str], str]:
+    """Return (sorted tickers, method).
+
+    Tries, in order of reliability:
+    1. 'table': a table with a Ticker/Symbol column;
+    2. 'link':  links to nasdaq.com quote pages (old "Company (NASDAQ: XXX)" layout);
+    3. 'paren': tickers in brackets, e.g. "Apple Inc. (AAPL)";
+    for 2 and 3 using the tightest list/table/column block that holds 95-110 tickers.
+    Returns ([], 'failed') if no method finds a plausible member count.
+    """
+    tickers = _table_column_tickers(html)
+    if tickers:
+        return tickers, "table"
+    from lxml import html as lxml_html
+    try:
+        root = lxml_html.fromstring(html)
+    except Exception:
+        return [], "failed"
+    for method, extract in (("link", _href_tickers), ("paren", _paren_tickers)):
+        tickers = _best_container(root, extract)
+        if tickers:
+            return tickers, method
     return [], "failed"
+
+
+def diagnose(html: str) -> str:
+    """Plain-text description of a page's layout, for fixing the parser (safe to share)."""
+    from lxml import html as lxml_html
+    root = lxml_html.fromstring(html)
+    lines = []
+    try:
+        tables = pd.read_html(StringIO(html), flavor="lxml")
+    except (ValueError, ImportError):
+        tables = []
+    lines.append(f"tables: {len(tables)}")
+    for i, t in enumerate(tables[:8]):
+        lines.append(f"  table {i}: {len(t)} rows, columns {[str(c)[:30] for c in t.columns][:6]}")
+    lines.append(f"list items: {len(list(root.iter('li')))}; nasdaq.com links: {len(_href_tickers(root))}; "
+                 f"(TICKER) patterns on page: {len(_paren_tickers(root))}")
+    text = root.text_content()
+    for word in ("Apple", "Microsoft", "Activision"):
+        i = text.find(word)
+        if i >= 0:
+            lines.append(f"text near '{word}': {text[max(0, i - 80):i + 160]!r}")
+            break
+    i = html.find("Apple")
+    if i >= 0:
+        lines.append(f"html near 'Apple': {html[max(0, i - 300):i + 300]!r}")
+    return "\n".join(lines)
 
 
 @dataclass
@@ -295,15 +374,43 @@ def changes_between(spells: pd.DataFrame, start: date, end: date) -> pd.DataFram
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Print membership changes for a year:  python -m quantagents.data.download.membership --year 2017"""
+    """python -m quantagents.data.download.membership --year 2017   (changes found in a year)
+    python -m quantagents.data.download.membership --diagnose      (why snapshots fail to parse)"""
     import argparse
     from quantagents.config import CONFIG_DIR, load_config
     from quantagents.paths import Paths
-    ap = argparse.ArgumentParser(description="List NASDAQ-100 membership changes found for one year")
-    ap.add_argument("--year", type=int, required=True)
+    ap = argparse.ArgumentParser(description="NASDAQ-100 membership reports")
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument("--year", type=int, help="list membership changes found in this year")
+    g.add_argument("--diagnose", action="store_true", help="explain snapshots that need review")
     ap.add_argument("--config", default=str(CONFIG_DIR / "base.yaml"))
     args = ap.parse_args(argv)
-    f = Paths.from_config(load_config(args.config)).derived / "ndx_membership.csv"
+    paths = Paths.from_config(load_config(args.config))
+
+    if args.diagnose:
+        src = WikipediaMembership(paths.raw, Manifest(paths.raw))
+        snaps = src.snapshots()
+        if snaps.empty:
+            print("no snapshots downloaded yet")
+            return 1
+        counts = snapshot_counts(snaps)
+        counts["year"] = counts["snapshot_utc"].dt.year
+        print("Snapshots by year (ok / need review) and parse method:")
+        for y, g_ in counts.groupby("year"):
+            methods = ", ".join(f"{m}={n}" for m, n in g_["method"].value_counts().items())
+            print(f"  {y}: {int((g_['status'] == 'ok').sum())} ok / {int((g_['status'] != 'ok').sum())} review  ({methods})")
+        bad = counts[counts["status"] != "ok"]
+        if bad.empty:
+            print("All snapshots parsed.")
+            return 0
+        for _, row in bad.iloc[[0, len(bad) // 2, -1]].drop_duplicates("source_ref").iterrows():
+            revid = int(str(row["source_ref"]).split(":")[1])
+            f = src.folder / "revisions" / f"{revid}.html.gz"
+            print(f"\n=== snapshot {row['snapshot_utc'].date()} revision {revid} ===")
+            print(diagnose(read_text_gz(f)) if f.exists() else "  (revision file missing)")
+        return 0
+
+    f = paths.derived / "ndx_membership.csv"
     if not f.exists():
         print(f"{f} not found - run the membership download first")
         return 1

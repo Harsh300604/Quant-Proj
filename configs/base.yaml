@@ -66,7 +66,7 @@ budget:
   inr_per_usd: 88.0          # exchange rate for showing costs in INR
 
 downloads:
-  wikipedia_requests_per_second: 1
+  wikipedia_requests_per_second: 0.2   # Wikipedia throttles faster clients (seen 5 Nov 2026)
   sec_requests_per_second: 8         # SEC allows at most 10
   alpaca_requests_per_minute: 180    # free plan allows 200
   membership_snapshot_days: [1, 15]  # Wikipedia snapshots on these days of every month
