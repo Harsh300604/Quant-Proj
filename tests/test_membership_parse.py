@@ -107,39 +107,76 @@ def test_diagnose_describes_layout():
     assert "tables:" in out and "Apple" in out
 
 
-# ---------------------------------------------------------------- navbox method (2016-2018)
-def test_learn_titles_and_parse_navbox():
-    from quantagents.data.download.membership import learn_link_tickers, parse_navbox
-    from tests.fixtures.samples import wiki_linked_paren_html, wiki_navbox_html
+# ---------------------------------------------------------------- point-in-time rules
+def test_verify_in_wikitext_drops_tickers_not_saved_that_day():
+    from quantagents.data.download.membership import verify_in_wikitext
+    kept, dropped = verify_in_wikitext(["AAPL", "BRK-B", "PLTR"], "| [[Apple Inc.]] || AAPL\n| BRK.B")
+    assert kept == ["AAPL", "BRK-B"] and dropped == ["PLTR"]
+
+
+def test_template_name_and_wikitext_links():
+    from quantagents.data.download.membership import navbox_template_name, wikitext_link_titles
+    from tests.fixtures.samples import wiki_navbox_html
+    assert navbox_template_name(wiki_navbox_html(["Apple Inc."])) == "Template:NASDAQ-100"
+    wt = "{{Navbox|title=[[Nasdaq-100|List of NASDAQ-100 companies]]|list1=[[Apple Inc.|Apple]] · [[amazon (company)]] · [[File:x.png]] · [[Apple Inc.]]}}"
+    assert wikitext_link_titles(wt) == ["Apple Inc.", "Amazon (company)"]
+
+
+def test_learn_titles_and_parse_template():
+    from quantagents.data.download.membership import learn_link_tickers, parse_template
+    from tests.fixtures.samples import wiki_linked_paren_html, wiki_template_wikitext
     members = BASE_MEMBERS + ["AAPL", "MSFT"]
     title_map = learn_link_tickers(wiki_linked_paren_html(members), members)
     assert title_map["Company AAPL"] == "AAPL" and len(title_map) == 100
-    # one member left, one unknown company joined
     titles = [f"Company {t}" for t in members if t != "MSFT"] + ["Brand New Corp"]
-    tickers, unmatched = parse_navbox(wiki_navbox_html(titles), title_map)
+    tickers, unmatched = parse_template(wiki_template_wikitext(titles), title_map)
     assert len(tickers) == 99 and "MSFT" not in tickers
     assert unmatched == ["Brand New Corp"]       # reported, never guessed
 
 
-def test_snapshots_use_navbox_for_failed_revisions(store):
+def test_snapshots_are_point_in_time(store):
+    """Rendered HTML shows a 2026 member (PLTR / 'Palantir'); neither may leak into 2015-16."""
     from datetime import datetime, timezone
     from quantagents.data.download.base import Manifest, write_json_gz, write_text_gz
     from quantagents.data.download.membership import WikipediaMembership
-    from tests.fixtures.samples import wiki_linked_paren_html, wiki_navbox_html
+    from tests.fixtures.samples import wiki_linked_paren_html, wiki_navbox_html, wiki_template_wikitext
     raw = store / "raw"
     src = WikipediaMembership(raw, Manifest(raw))
     members = BASE_MEMBERS + ["AAPL", "MSFT"]
-    write_text_gz(src.folder / "revisions" / "1.html.gz", wiki_linked_paren_html(members))
-    write_text_gz(src.folder / "revisions" / "2.html.gz",
-                  wiki_navbox_html([f"Company {t}" for t in members] + ["Brand New Corp"]))
+    # rev 1 (2015): article list; its HTML also shows PLTR (rendered from a current template)
+    write_text_gz(src.html_file(1), wiki_linked_paren_html(members + ["PLTR"]))
+    write_text_gz(src.wikitext_file(1), "\n".join(f"* [[Company {t}]] ({t})" for t in members))
+    # rev 2 (2016): list only in the members box; rendered box = today's members
+    write_text_gz(src.html_file(2), wiki_navbox_html(["Palantir"] + [f"Company {t}" for t in members]))
+    write_text_gz(src.wikitext_file(2), "Article text. {{NASDAQ-100}}")
+    write_text_gz(src.template_file("Template:NASDAQ-100", 900),
+                  wiki_template_wikitext([f"Company {t}" for t in members] + ["Brand New Corp"]))
     t1 = datetime(2015, 1, 1, tzinfo=timezone.utc).isoformat()
     t2 = datetime(2016, 6, 15, tzinfo=timezone.utc).isoformat()
-    write_json_gz(src.folder / "snapshots.json.gz", {t1: {"revid": 1, "rev_timestamp": ""},
-                                                     t2: {"revid": 2, "rev_timestamp": ""}})
+    write_json_gz(src.folder / "snapshots.json.gz", {
+        t1: {"revid": 1, "rev_timestamp": "", "template": None},
+        t2: {"revid": 2, "rev_timestamp": "", "template": {"title": "Template:NASDAQ-100", "revid": 900, "timestamp": ""}}})
     snaps = src.snapshots()
-    late = snaps[snaps["source_ref"] == "wiki:2"]
-    assert set(late["status"]) == {"ok"} and set(late["method"]) == {"navbox"} and len(late) == 100
+    early = snaps[snaps["source_ref"] == "wiki:1"]
+    late = snaps[snaps["source_ref"] == "wiki:2+tpl:900"]
+    assert "PLTR" not in set(snaps["ticker"])                       # look-ahead blocked
+    assert list(src.dropped["ticker"]) == ["PLTR"]
+    assert set(early["status"]) == {"ok"} and len(early) == 100
+    assert set(late["method"]) == {"template"} and len(late) == 100
     assert list(src.unmatched["title"]) == ["Brand New Corp"]
+
+
+def test_unverified_revision_needs_review(store):
+    from datetime import datetime, timezone
+    from quantagents.data.download.base import Manifest, write_json_gz, write_text_gz
+    from quantagents.data.download.membership import WikipediaMembership
+    raw = store / "raw"
+    src = WikipediaMembership(raw, Manifest(raw))
+    write_text_gz(src.html_file(1), wiki_table_html(BASE_MEMBERS + ["AAPL", "MSFT"]))  # no wikitext saved
+    write_json_gz(src.folder / "snapshots.json.gz",
+                  {datetime(2015, 1, 1, tzinfo=timezone.utc).isoformat(): {"revid": 1, "template": None}})
+    snaps = src.snapshots()
+    assert set(snaps["status"]) == {"needs_review"} and set(snaps["method"]) == {"table-unverified"}
 
 
 def test_manual_title_map_file(tmp_path):

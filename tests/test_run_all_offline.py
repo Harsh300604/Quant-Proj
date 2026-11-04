@@ -16,15 +16,10 @@ BEFORE = S.BASE_MEMBERS[:-4] + ["AAPL", "MSFT", "NVDA", "AMZN", "OLDCO", "OLDTW"
 AFTER = S.BASE_MEMBERS[:-4] + ["AAPL", "MSFT", "NVDA", "AMZN", "NEWCO", "NEWTW"]
 
 
-def wiki_callback(request):
-    from urllib.parse import parse_qs, urlparse
-    q = {k: v[0] for k, v in parse_qs(urlparse(request.url).query).items()}
-    import json
-    if q["action"] == "query":
-        rev = 10 if q["rvstart"] < "2018-01-01" else 11
-        return 200, {}, json.dumps(S.wiki_query(rev, "2014-01-01T00:00:00Z"))
-    html = S.wiki_table_html(BEFORE if q["oldid"] == "10" else AFTER)
-    return 200, {}, json.dumps(S.wiki_parse(int(q["oldid"]), html))
+wiki_callback = S.wiki_api_callback(
+    html_for_revid=lambda r: S.wiki_table_html(BEFORE if r == 10 else AFTER),
+    wikitext_for_revid=lambda r: " ".join(BEFORE if r == 10 else AFTER),
+    revid_for_time=lambda t: 10 if t < "2018-01-01" else 11)
 
 
 @responses.activate

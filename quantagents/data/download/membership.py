@@ -162,7 +162,8 @@ def diagnose(html: str) -> str:
     lines.append(f"list items: {len(list(root.iter('li')))}; nasdaq.com links: {len(_href_tickers(root))}; "
                  f"(TICKER) patterns on page: {len(_paren_tickers(root))}")
     nav = navbox_titles(html)
-    lines.append(f"'List of NASDAQ-100 companies' box: {len(nav)} article links; first 12: {nav[:12]}")
+    lines.append(f"members box as rendered TODAY (not used - may show current members): "
+                 f"{len(nav)} links; template page: {navbox_template_name(html)}")
     boxes = [el for el in root.iter("table", "div") if "navbox" in (el.get("class") or "")]
     lines.append(f"navigation boxes on page: {len(boxes)}; their headings: "
                  f"{[re.sub(r'\\s+', ' ', visible_text(b)[:60]).strip() for b in boxes[:4]]}")
@@ -178,11 +179,23 @@ def diagnose(html: str) -> str:
     return "\n".join(lines)
 
 
-# ----------------------------------------------------------------------------- navbox method
+# ----------------------------------------------------------------------------- point-in-time rules
+# IMPORTANT (found 5 Nov 2026): the HTML of an OLD revision is rendered with TODAY's templates.
 # Mid-2016 to mid-2018 the article listed members only in the "List of NASDAQ-100 companies"
-# navigation box: company names linked to their Wikipedia articles, without tickers. We learn
-# "article title -> ticker" from the revisions that do show tickers, then read the box.
+# navigation box, which is a template - so its rendered HTML shows 2026 members (look-ahead).
+# Two rules keep membership point-in-time:
+#  1. Every ticker parsed from a revision's HTML must also appear in that revision's own
+#     wikitext (the raw text as saved on that date); others are dropped (``verify_in_wikitext``).
+#  2. When the list lives in the template, we read the TEMPLATE's own revision as of the
+#     snapshot time (its wikitext), map its company links to tickers using article-title ->
+#     ticker pairs learned from revisions that show tickers, and report names we cannot map.
 _WORD_TICKER = re.compile(r"(?<![A-Za-z])([A-Z]{1,5}(?:[.\-][A-Z])?)(?![A-Za-z])")
+_WIKILINK = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\[\]|]*)?(?:\|[^\[\]]*)?\]\]")
+
+
+def normalise_title(t: str) -> str:
+    t = t.replace("_", " ").strip()
+    return t[:1].upper() + t[1:] if t else t
 
 
 def wiki_title(href: str | None) -> str | None:
@@ -190,12 +203,12 @@ def wiki_title(href: str | None) -> str | None:
     from urllib.parse import unquote
     if not href or not href.startswith("/wiki/"):
         return None
-    t = unquote(href[len("/wiki/"):].split("#")[0]).replace("_", " ").strip()
+    t = normalise_title(unquote(href[len("/wiki/"):].split("#")[0]))
     return None if not t or ":" in t else t
 
 
 def learn_link_tickers(html: str, members: list[str]) -> dict[str, str]:
-    """From a revision with known members: {company article title: ticker}.
+    """From a revision with verified members: {company article title: ticker}.
 
     For every list item / table row that mentions exactly one member ticker, the first
     article link in it is taken to be that company.
@@ -221,21 +234,64 @@ def visible_text(el) -> str:
     return "".join(el.xpath(".//text()[not(ancestor::style) and not(ancestor::script)]"))
 
 
-def navbox_titles(html: str) -> list[str]:
-    """Article titles linked from the 'List of NASDAQ-100 companies' navigation box."""
-    from lxml import html as lxml_html
-    root = lxml_html.fromstring(html)
+def _members_navbox(root):
     for el in root.iter("table", "div"):
         cls = el.get("class") or ""
         head = re.sub(r"\s+", " ", visible_text(el)[:300]).lower()
         if "navbox" in cls and "nasdaq-100 compan" in head:
-            titles = []
-            for a in el.iter("a"):
-                t = wiki_title(a.get("href"))
-                if t and "nasdaq-100" not in t.lower() and t not in titles:
-                    titles.append(t)
-            return titles
-    return []
+            return el
+    return None
+
+
+def navbox_titles(html: str) -> list[str]:
+    """Titles linked from the rendered members box. RENDERED WITH TODAY'S TEMPLATE:
+    diagnostics only, never used for membership."""
+    from lxml import html as lxml_html
+    box = _members_navbox(lxml_html.fromstring(html))
+    if box is None:
+        return []
+    titles = []
+    for a in box.iter("a"):
+        t = wiki_title(a.get("href"))
+        if t and "nasdaq-100" not in t.lower() and t not in titles:
+            titles.append(t)
+    return titles
+
+
+def navbox_template_name(html: str) -> str | None:
+    """'Template:NASDAQ-100' (the members box's template page), from its 'v' (view) link."""
+    from urllib.parse import unquote
+    from lxml import html as lxml_html
+    box = _members_navbox(lxml_html.fromstring(html))
+    if box is None:
+        return None
+    for a in box.iter("a"):
+        href = a.get("href") or ""
+        if href.startswith("/wiki/Template:"):
+            return unquote(href[len("/wiki/"):].split("#")[0]).replace("_", " ")
+    return None
+
+
+def wikitext_link_titles(wikitext: str) -> list[str]:
+    """Article titles linked as [[Title]] or [[Title|label]] (namespaced links skipped)."""
+    out = []
+    for m in _WIKILINK.findall(wikitext):
+        t = normalise_title(m)
+        if t and ":" not in t and "nasdaq-100" not in t.lower() and t not in out:
+            out.append(t)
+    return out
+
+
+def verify_in_wikitext(tickers: list[str], wikitext: str) -> tuple[list[str], list[str]]:
+    """(kept, dropped): keep tickers that literally appear in the revision's own wikitext."""
+    kept, dropped = [], []
+    for t in tickers:
+        forms = {t, t.replace("-", ".")}
+        if any(re.search(rf"(?<![A-Za-z]){re.escape(f)}(?![A-Za-z])", wikitext) for f in forms):
+            kept.append(t)
+        else:
+            dropped.append(t)
+    return kept, dropped
 
 
 def load_title_tickers(path: Path | None = None) -> dict[str, str]:
@@ -244,15 +300,19 @@ def load_title_tickers(path: Path | None = None) -> dict[str, str]:
     if not path.exists():
         return {}
     df = pd.read_csv(path, comment="#", dtype=str).fillna("")
-    return {r.title.strip(): r.ticker.strip().upper() for r in df.itertuples() if r.title.strip()}
+    return {normalise_title(r.title): r.ticker.strip().upper() for r in df.itertuples() if r.title.strip()}
 
 
-def parse_navbox(html: str, title_map: dict[str, str]) -> tuple[list[str], list[str]]:
-    """(member tickers, unmatched titles) from the navigation box."""
-    titles = navbox_titles(html)
+def parse_template(wikitext: str, title_map: dict[str, str]) -> tuple[list[str], list[str]]:
+    """(member tickers, unmatched titles) from the members template's wikitext."""
+    titles = wikitext_link_titles(wikitext)
     tickers = sorted({title_map[t] for t in titles if t in title_map})
     unmatched = [t for t in titles if t not in title_map]
     return tickers, unmatched
+
+
+def _safe(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", name)
 
 
 @dataclass
@@ -273,15 +333,48 @@ class WikipediaMembership(MembershipSource):
     def folder(self) -> Path:
         return self.raw_dir / "membership" / "wikipedia"
 
+    def html_file(self, revid: int) -> Path:
+        return self.folder / "revisions" / f"{revid}.html.gz"
+
+    def wikitext_file(self, revid: int) -> Path:
+        return self.folder / "wikitext" / f"{revid}.txt.gz"
+
+    def template_file(self, title: str, revid: int) -> Path:
+        return self.folder / "templates" / _safe(title) / f"{revid}.txt.gz"
+
     # --- download ---------------------------------------------------------------------
-    def _revision_at(self, t: datetime) -> dict | None:
-        resp = self.http.get(API_URL, params={
-            "action": "query", "prop": "revisions", "titles": ARTICLE, "rvlimit": 1,
-            "rvdir": "older", "rvstart": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "rvprop": "ids|timestamp", "format": "json", "formatversion": 2, "redirects": 1})
-        pages = resp.json().get("query", {}).get("pages", [])
+    def _revision_at(self, title: str, t: datetime, content: bool = False) -> dict | None:
+        params = {"action": "query", "prop": "revisions", "titles": title, "rvlimit": 1,
+                  "rvdir": "older", "rvstart": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                  "rvprop": "ids|timestamp" + ("|content" if content else ""),
+                  "format": "json", "formatversion": 2, "redirects": 1}
+        if content:
+            params["rvslots"] = "main"
+        pages = self.http.get(API_URL, params=params).json().get("query", {}).get("pages", [])
         revs = pages[0].get("revisions") if pages else None
         return revs[0] if revs else None
+
+    @staticmethod
+    def _content(rev: dict) -> str:
+        if "slots" in rev:
+            return rev["slots"]["main"].get("content", "")
+        return rev.get("content", "")
+
+    def _download_wikitext(self, revids: list[int]) -> None:
+        todo = [r for r in revids if not self.manifest.is_complete(self.wikitext_file(r))]
+        for i in range(0, len(todo), 10):   # small batches: large responses can be cut short
+            batch = todo[i:i + 10]
+            data = self.http.get(API_URL, params={
+                "action": "query", "prop": "revisions", "revids": "|".join(map(str, batch)),
+                "rvprop": "ids|content", "rvslots": "main", "format": "json", "formatversion": 2}).json()
+            for page in data.get("query", {}).get("pages", []):
+                for rev in page.get("revisions", []):
+                    f = self.wikitext_file(int(rev["revid"]))
+                    write_text_gz(f, self._content(rev))
+                    self.manifest.record("membership", f, 1, {"revid": rev["revid"], "kind": "wikitext"})
+        missing = [r for r in todo if not self.wikitext_file(r).exists()]
+        if missing:
+            log.warning("wikitext not returned for %d revision(s); rerun to retry: %s", len(missing), missing[:10])
 
     def download(self, start: date, end: date) -> list[Path]:
         index_file = self.folder / "snapshots.json.gz"
@@ -290,88 +383,113 @@ class WikipediaMembership(MembershipSource):
         for t in tqdm(snapshot_times(start, end, list(self.snapshot_days)), desc="membership", unit="snapshot"):
             key = t.isoformat()
             if key not in index:
-                rev = self._revision_at(t)
+                rev = self._revision_at(ARTICLE, t)
                 if rev is None:
                     log.warning("no Wikipedia revision before %s", key)
                     continue
                 index[key] = {"revid": rev["revid"], "rev_timestamp": rev["timestamp"]}
                 write_json_gz(index_file, index)
             revid = index[key]["revid"]
-            html_file = self.folder / "revisions" / f"{revid}.html.gz"
-            if self.manifest.is_complete(html_file):
-                continue
-            resp = self.http.get(API_URL, params={
-                "action": "parse", "oldid": revid, "prop": "text", "format": "json",
-                "formatversion": 2})
-            html = resp.json()["parse"]["text"]
-            write_text_gz(html_file, html)
-            members, _ = parse_members(html)
-            self.manifest.record("membership", html_file, len(members), {"revid": revid})
-            written.append(html_file)
+            html_file = self.html_file(revid)
+            if not self.manifest.is_complete(html_file):
+                resp = self.http.get(API_URL, params={
+                    "action": "parse", "oldid": revid, "prop": "text", "format": "json",
+                    "formatversion": 2})
+                html = resp.json()["parse"]["text"]
+                write_text_gz(html_file, html)
+                members, _ = parse_members(html)
+                self.manifest.record("membership", html_file, len(members), {"revid": revid})
+                written.append(html_file)
+            if "template" not in index[key]:
+                # list not in the article itself -> fetch the members template as of time t
+                html = read_text_gz(html_file)
+                info = None
+                if not parse_members(html)[0]:
+                    tname = navbox_template_name(html)
+                    trev = self._revision_at(tname, t, content=True) if tname else None
+                    if trev:
+                        f = self.template_file(tname, trev["revid"])
+                        write_text_gz(f, self._content(trev))
+                        self.manifest.record("membership", f, 1, {"template": tname, "revid": trev["revid"]})
+                        info = {"title": tname, "revid": trev["revid"], "timestamp": trev["timestamp"]}
+                index[key]["template"] = info
+                write_json_gz(index_file, index)
+        self._download_wikitext(sorted({int(v["revid"]) for v in index.values()}))
         if index_file.exists():
             self.manifest.record("membership", index_file, len(index), {"start": str(start), "end": str(end)})
         return written
 
     # --- parse ------------------------------------------------------------------------
     def snapshots(self) -> pd.DataFrame:
-        """One row per (snapshot, member). Also sets ``self.unmatched``: navbox names that
-        could not be matched to a ticker (columns snapshot_utc, revid, title)."""
+        """One row per (snapshot, member), point-in-time verified. Also sets:
+        ``self.unmatched`` - template names with no known ticker (snapshot_utc, revid, title)
+        ``self.dropped``   - tickers removed because they are not in that revision's wikitext."""
+        cols = ["snapshot_utc", "ticker", "source_ref", "status", "method"]
         self.unmatched = pd.DataFrame(columns=["snapshot_utc", "revid", "title"])
+        self.dropped = pd.DataFrame(columns=["snapshot_utc", "revid", "ticker"])
         index_file = self.folder / "snapshots.json.gz"
         if not index_file.exists():
-            return pd.DataFrame(columns=["snapshot_utc", "ticker", "source_ref", "status", "method"])
+            return pd.DataFrame(columns=cols)
         index = read_json_gz(index_file)
         bad = load_bad_revisions()
+
+        # 1. parse each article revision's HTML, then keep only tickers in its own wikitext
         html: dict[int, str] = {}
         parsed: dict[int, tuple[list[str], str]] = {}
+        dropped_by_rev: dict[int, list[str]] = {}
         for info in index.values():
             revid = int(info["revid"])
             if revid in bad or revid in parsed:
                 continue
-            f = self.folder / "revisions" / f"{revid}.html.gz"
-            if f.exists():
-                html[revid] = read_text_gz(f)
-                parsed[revid] = parse_members(html[revid])
-            else:
+            hf, wf = self.html_file(revid), self.wikitext_file(revid)
+            if not hf.exists():
                 parsed[revid] = ([], "missing")
+                continue
+            html[revid] = read_text_gz(hf)
+            tickers, method = parse_members(html[revid])
+            if tickers:
+                if not wf.exists():
+                    parsed[revid] = ([], f"{method}-unverified")
+                    continue
+                kept, dropped = verify_in_wikitext(tickers, read_text_gz(wf))
+                dropped_by_rev[revid] = dropped
+                tickers = kept if _in_range(len(kept)) else []
+                method = method if tickers else f"{method}-failed-verification"
+            parsed[revid] = (tickers, method)
 
-        # second pass: revisions that failed -> navigation box, using titles learned from the rest
+        # 2. article title -> ticker, learned from verified revisions (later names win)
         title_map: dict[str, str] = {}
         for revid, (tickers, _) in sorted(parsed.items()):
             if tickers:
-                for t, tk in learn_link_tickers(html[revid], tickers).items():
-                    title_map[t] = tk          # later revisions win (current names)
+                title_map.update(learn_link_tickers(html[revid], tickers))
         title_map.update(load_title_tickers())
-        unmatched_rows = []
-        for revid, (tickers, method) in parsed.items():
-            if tickers or revid not in html:
-                continue
-            nav, unmatched = parse_navbox(html[revid], title_map)
-            if _in_range(len(nav)):
-                parsed[revid] = (nav, "navbox")
-            for t in unmatched:
-                unmatched_rows.append({"revid": revid, "title": t})
 
-        rows = []
-        unmatched_by_rev = pd.DataFrame(unmatched_rows, columns=["revid", "title"])
-        un = []
+        # 3. per snapshot: article list, else the template as it was at that time
+        rows, un, dr = [], [], []
         for key, info in sorted(index.items()):
             revid = int(info["revid"])
             if revid in bad:
                 continue
-            tickers, method = parsed[revid]
-            status = "ok" if tickers else "needs_review"
             ts = pd.Timestamp(key)
+            tickers, method = parsed.get(revid, ([], "missing"))
+            ref = f"wiki:{revid}"
+            tinfo = info.get("template")
+            if not tickers and tinfo:
+                tf = self.template_file(tinfo["title"], tinfo["revid"])
+                if tf.exists():
+                    tk, unmatched = parse_template(read_text_gz(tf), title_map)
+                    un += [{"snapshot_utc": ts, "revid": revid, "title": u} for u in unmatched]
+                    ref = f"wiki:{revid}+tpl:{tinfo['revid']}"
+                    tickers, method = (tk, "template") if _in_range(len(tk)) else ([], "template-incomplete")
+            dr += [{"snapshot_utc": ts, "revid": revid, "ticker": d} for d in dropped_by_rev.get(revid, [])]
+            status = "ok" if tickers else "needs_review"
             if not tickers:
-                rows.append({"snapshot_utc": ts, "ticker": None, "source_ref": f"wiki:{revid}",
-                             "status": status, "method": method})
+                rows.append({"snapshot_utc": ts, "ticker": None, "source_ref": ref, "status": status, "method": method})
             for tk in tickers:
-                rows.append({"snapshot_utc": ts, "ticker": tk, "source_ref": f"wiki:{revid}",
-                             "status": status, "method": method})
-            for t in unmatched_by_rev.loc[unmatched_by_rev["revid"] == revid, "title"]:
-                un.append({"snapshot_utc": ts, "revid": revid, "title": t})
+                rows.append({"snapshot_utc": ts, "ticker": tk, "source_ref": ref, "status": status, "method": method})
         self.unmatched = pd.DataFrame(un, columns=["snapshot_utc", "revid", "title"])
-        return pd.DataFrame(rows)
+        self.dropped = pd.DataFrame(dr, columns=["snapshot_utc", "revid", "ticker"])
+        return pd.DataFrame(rows, columns=cols)
 
 
 # ----------------------------------------------------------------------------- spells
@@ -511,16 +629,20 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         counts = snapshot_counts(snaps)
         counts["year"] = counts["snapshot_utc"].dt.year
-        print("Parser version: 4 (navbox, ignores CSS)")
+        print("Parser version: 5 (point-in-time: wikitext check + template history)")
         print("Snapshots by year (ok / need review) and parse method:")
         for y, g_ in counts.groupby("year"):
             methods = ", ".join(f"{m}={n}" for m, n in g_["method"].value_counts().items())
             print(f"  {y}: {int((g_['status'] == 'ok').sum())} ok / {int((g_['status'] != 'ok').sum())} review  ({methods})")
+        if len(src.dropped):
+            d = src.dropped.groupby("ticker").size().sort_values(ascending=False)
+            print(f"\nTickers removed by the point-in-time check (in the page HTML but not in that "
+                  f"date's own text) - {len(d)} tickers: {', '.join(d.index[:30])}")
         if len(src.unmatched):
             u = src.unmatched.groupby("title").agg(snapshots=("revid", "size"),
                                                    first=("snapshot_utc", "min"),
                                                    last=("snapshot_utc", "max")).reset_index()
-            print(f"\nNames in the 'List of NASDAQ-100 companies' box with no known ticker ({len(u)}):")
+            print(f"\nNames in the members template (as it was on each date) with no known ticker ({len(u)}):")
             print("(non-companies here are harmless; for companies, add 'title,ticker' rows to "
                   "reference\\wiki_title_tickers.csv)")
             for r in u.sort_values("first").itertuples():
@@ -530,7 +652,7 @@ def main(argv: list[str] | None = None) -> int:
             print("All snapshots parsed.")
             return 0
         for _, row in bad.iloc[[0, len(bad) // 2, -1]].drop_duplicates("source_ref").iterrows():
-            revid = int(str(row["source_ref"]).split(":")[1])
+            revid = int(str(row["source_ref"]).split(":")[1].split("+")[0])
             f = src.folder / "revisions" / f"{revid}.html.gz"
             print(f"\n=== snapshot {row['snapshot_utc'].date()} revision {revid} ===")
             print(diagnose(read_text_gz(f)) if f.exists() else "  (revision file missing)")

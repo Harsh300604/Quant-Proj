@@ -83,7 +83,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 
 ## Phase 1: Setup, config and downloaders (week 1)
 
-**Status:** built and tested in the cloud session on 4 Nov 2026 (67 automated tests pass after the 5 Nov parser fixes). **Waiting for your manual checks on the laptop.**
+**Status:** built and tested in the cloud session on 4 Nov 2026 (71 automated tests pass after the 5 Nov membership fixes, including a look-ahead guard). **Waiting for your manual checks on the laptop.**
 
 **Goal:** the repo installs on D:, config loads, secrets are handled safely, and the downloads you run on your laptop have started.
 
@@ -111,7 +111,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 - [x] `.env` loading and secret masking
 - [x] Source interfaces: `MembershipSource`, `PriceSource`, `NewsSource`, `FundamentalsSource`
 - [x] Downloaders. Each is resumable, rate-limited, shows a progress bar, saves raw files plus a manifest entry, and writes under the storage root only:
-  - [x] Membership from Wikipedia page-history snapshots (1st and 15th of each month), with hand-correction files (D16), plus `--year` change report
+  - [x] Membership from Wikipedia page-history snapshots (1st and 15th of each month), with hand-correction files (D16), plus `--year` change report and `--diagnose`. Point-in-time guard (D21): tickers must appear in that day's own wikitext; 2016-18 read from the members template's own history
   - [x] yfinance prices for every ticker that was ever a member, plus QQQ and ^NDX; gaps listed in `raw\prices\missing.csv`; manual CSV fallback
   - [x] Alpaca news, 2015–2023 (headline and summary, not full text)
   - [x] SEC EDGAR company facts and submissions (acceptance times, SIC code, address); missing CIKs listed
@@ -120,7 +120,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 - [x] Decisions log and continuity files
 - [ ] **Your manual checks below**
 
-**Automated tests (67 passing):**
+**Automated tests (71 passing):**
 - `test_config.py`: base and pilot load; bad values are rejected; sampling parameters rejected; key budgets ($2.40 stop)
 - `test_paths.py`: C: paths (including `/mnt/c`) raise an error; D: paths resolve; library caches and temp redirected
 - `test_secrets.py`: a fake key never appears in log output, error messages or `repr`; only `.env` is read
@@ -155,7 +155,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
    ```powershell
    pytest -q
    ```
-   **Pass:** the last line says `67 passed` with no `failed`.
+   **Pass:** the last line says `71 passed` with no `failed`.
 4. Pilot downloads. About 50 MB goes to `D:\CreatED-Quant\qa_store\raw\`, taking roughly 5–10 minutes, mostly Wikipedia history at 1 request per second.
    ```powershell
    python -m quantagents.data.download.run_all --pilot

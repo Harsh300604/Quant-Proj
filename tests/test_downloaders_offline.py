@@ -46,28 +46,53 @@ def test_http_error_hides_headers():
 @responses.activate
 def test_wikipedia_membership(raw):
     # 3 snapshots: two share revision 10, the third uses revision 11 (one member replaced)
-    members_a = S.BASE_MEMBERS + ["AAPL", "OLDCO"]
-    members_b = S.BASE_MEMBERS + ["AAPL", "NEWCO"]
-    for rev, ts in [(10, "2014-12-20T00:00:00Z"), (10, "2014-12-20T00:00:00Z"), (11, "2015-01-10T00:00:00Z")]:
-        responses.add(responses.GET, API_URL, json=S.wiki_query(rev, ts),
-                      match=[responses.matchers.query_param_matcher({"action": "query"}, strict_match=False)])
-    responses.add(responses.GET, API_URL, json=S.wiki_parse(10, S.wiki_table_html(members_a)),
-                  match=[responses.matchers.query_param_matcher({"action": "parse", "oldid": "10"}, strict_match=False)])
-    responses.add(responses.GET, API_URL, json=S.wiki_parse(11, S.wiki_list_html(members_b)),
-                  match=[responses.matchers.query_param_matcher({"action": "parse", "oldid": "11"}, strict_match=False)])
+    members = {10: S.BASE_MEMBERS + ["AAPL", "OLDCO"], 11: S.BASE_MEMBERS + ["AAPL", "NEWCO"]}
+    responses.add_callback(responses.GET, API_URL, callback=S.wiki_api_callback(
+        html_for_revid=lambda r: (S.wiki_table_html if r == 10 else S.wiki_list_html)(members[r]),
+        wikitext_for_revid=lambda r: " ".join(members[r]),
+        revid_for_time=lambda t: 10 if t < "2015-01-10" else 11))
     m = Manifest(raw)
     src = WikipediaMembership.create(raw, m, 100, [1, 15])
     src.download(date(2015, 1, 1), date(2015, 2, 10))   # snapshots 1 Jan, 15 Jan, 1 Feb
     snaps = src.snapshots()
-    assert snaps["snapshot_utc"].nunique() == 3
+    assert snaps["snapshot_utc"].nunique() == 3 and set(snaps["status"]) == {"ok"}
     last = snaps[snaps["snapshot_utc"] == snaps["snapshot_utc"].max()]
     assert "NEWCO" in set(last["ticker"]) and "OLDCO" not in set(last["ticker"])
-    assert len(m.entries("membership")) == 3  # 2 revisions + index
+    assert src.wikitext_file(10).exists() and src.wikitext_file(11).exists()
 
-    # resume: second run makes no new HTTP calls for already-downloaded revisions
+    # resume: second run makes no new HTTP calls
     calls = len(responses.calls)
     src.download(date(2015, 1, 1), date(2015, 2, 10))
     assert len(responses.calls) == calls
+
+
+@responses.activate
+def test_wikipedia_fetches_template_as_of_snapshot_time(raw):
+    """When the article has no list, the members template is fetched as it was at time t."""
+    import json
+    from urllib.parse import parse_qs, urlparse
+    members = S.BASE_MEMBERS + ["AAPL", "MSFT"]
+    seen = []
+
+    def cb(request):
+        q = {k: v[0] for k, v in parse_qs(urlparse(request.url).query).items()}
+        if q["action"] == "parse":
+            return 200, {}, json.dumps(S.wiki_parse(20, S.wiki_navbox_html(["Palantir"])))
+        if "revids" in q:
+            return 200, {}, json.dumps({"query": {"pages": [{"revisions": [
+                {"revid": 20, "slots": {"main": {"content": "{{NASDAQ-100}}"}}}]}]}})
+        if q["titles"] == "Template:NASDAQ-100":
+            seen.append(q["rvstart"])
+            return 200, {}, json.dumps({"query": {"pages": [{"revisions": [
+                {"revid": 900, "timestamp": "2016-06-01T00:00:00Z",
+                 "slots": {"main": {"content": S.wiki_template_wikitext([f"Company {t}" for t in members])}}}]}]}})
+        return 200, {}, json.dumps(S.wiki_query(20, q["rvstart"]))
+
+    responses.add_callback(responses.GET, API_URL, callback=cb)
+    src = WikipediaMembership.create(raw, Manifest(raw), 100, [15])
+    src.download(date(2016, 6, 1), date(2016, 6, 30))
+    assert seen == ["2016-06-15T00:00:00Z"]       # template asked for as of the snapshot time
+    assert src.template_file("Template:NASDAQ-100", 900).exists()
 
 
 # ---------------------------------------------------------------- prices

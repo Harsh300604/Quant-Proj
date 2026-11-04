@@ -13,8 +13,8 @@ _Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
 | Current phase | **Phase 1: Setup, config and downloaders.** Built; 61 tests pass; **waiting for the user's manual checks on the laptop** |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Pilot rerun: 107 members (2015), 101 (2023), 5th stock AAL; 32 snapshots (2016-18) failed. Added navbox method; 67 tests pass |
-| Next step | User: `git pull`, rerun `run_all --pilot`, then `membership --diagnose`; fill `reference/wiki_title_tickers.csv` for real companies listed as unmatched. Then checks 5-6 |
+| Last step | Found look-ahead in Wikipedia rendering (old revisions use today's templates). Membership now verified against each revision's own wikitext; 2016-18 read from the template's own history. 71 tests pass |
+| Next step | User: `git pull`, rerun `run_all --pilot` (downloads ~200 revision texts + ~32 template versions, ~3-5 min), then `membership --diagnose`; map any unmatched company names in `reference/wiki_title_tickers.csv`. Then checks 5-6 |
 
 ## Spend so far
 

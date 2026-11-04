@@ -121,3 +121,29 @@ def wiki_navbox_html(titles: list[str]) -> str:
             f"<tr><td><ul>{links}</ul></td></tr></table></div>"
             "<div class='navbox'><table><tr><th>Nasdaq, Inc.</th></tr><tr><td>"
             "<a href='/wiki/Nasdaq_Stock_Market'>Nasdaq</a></td></tr></table></div></div>")
+
+
+def wiki_template_wikitext(titles: list[str]) -> str:
+    """Members template source as saved on some date."""
+    links = " · ".join(f"[[{t}]]" for t in titles)
+    return ("{{Navbox\n| name = NASDAQ-100\n| title = [[Nasdaq-100|List of NASDAQ-100 companies]]\n"
+            f"| list1 = {links}\n}}}}")
+
+
+def wiki_api_callback(html_for_revid, wikitext_for_revid, revid_for_time):
+    """`responses` callback emulating the MediaWiki API (query by time, query by revids, parse)."""
+    import json
+    from urllib.parse import parse_qs, urlparse
+
+    def cb(request):
+        q = {k: v[0] for k, v in parse_qs(urlparse(request.url).query).items()}
+        if q["action"] == "parse":
+            rid = int(q["oldid"])
+            return 200, {}, json.dumps(wiki_parse(rid, html_for_revid(rid)))
+        if "revids" in q:
+            revs = [{"revid": int(r), "slots": {"main": {"content": wikitext_for_revid(int(r))}}}
+                    for r in q["revids"].split("|")]
+            return 200, {}, json.dumps({"query": {"pages": [{"pageid": 1, "revisions": revs}]}})
+        rid = revid_for_time(q["rvstart"])
+        return 200, {}, json.dumps(wiki_query(rid, q["rvstart"]))
+    return cb
