@@ -10,11 +10,11 @@ _Last updated: 2026-11-05 (Phase 1: full download running; funding stages added)
 | Item | State |
 |---|---|
 | Plan | `implementation_plan.md`, approved 2026-11-04 |
-| Current phase | **Phase 1.** Manual checks 1–5 passed; **check 6 (full download) running overnight on the laptop** |
+| Current phase | **Phase 1.** All 6 manual checks run; full download finished OK on 5-6 Nov (prices 151 files, edgar 444, news 1,728 ticker-year files / 348k articles). Waiting for missing-ticker counts + share-class answer to close Phase 1 |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Funding stages added (plan section, `configs/stages.yaml`, config validation, check_env line; 79 tests). Membership finished: 0 review, 0 jumps, Dec 2016/2017/2020/2022 match Nasdaq |
-| Next step | User sends the full-download results (summary, Yahoo-missing count, SEC-missing count) and the share-class answer. Then tick Phase 1 and start Phase 2 |
+| Last step | Full download complete, every source OK |
+| Next step | User sends Yahoo-missing and SEC-missing lists and answers share classes; then tick Phase 1 and start Phase 2 |
 
 ## Spend so far and funding stage
 
