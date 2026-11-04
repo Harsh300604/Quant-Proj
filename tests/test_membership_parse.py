@@ -184,3 +184,26 @@ def test_manual_title_map_file(tmp_path):
     f = tmp_path / "w.csv"
     f.write_text("# comment\ntitle,ticker\nBrand New Corp,bnew\n", encoding="utf-8")
     assert load_title_tickers(f) == {"Brand New Corp": "BNEW"}
+
+
+# ---------------------------------------------------------------- historical sections and jumps
+def test_historical_components_list_is_ignored():
+    from tests.fixtures.samples import wiki_with_historical_section
+    old = [f"O{chr(65 + i // 26)}{chr(65 + i % 26)}" for i in range(98)]   # 98 past members, tighter list
+    tickers, method = parse_members(wiki_with_historical_section(BASE_MEMBERS + ["AAPL", "MSFT"], old))
+    assert method == "paren" and "AAPL" in tickers and not set(old) & set(tickers)
+
+
+def test_only_historical_list_fails():
+    from tests.fixtures.samples import wiki_with_historical_section
+    tickers, method = parse_members(wiki_with_historical_section([], BASE_MEMBERS + ["AAPL", "MSFT"]))
+    assert tickers == [] and method == "failed"
+
+
+def test_snapshot_jumps_flags_bad_parse():
+    from quantagents.data.download.membership import MAX_JUMP, snapshot_jumps
+    good = BASE_MEMBERS + ["AAPL", "MSFT"]
+    garbage = [f"O{chr(65 + i // 26)}{chr(65 + i % 26)}" for i in range(60)] + good[:40]
+    snaps = snaps_from({"2017-05-01": good, "2017-05-15": good[:-1] + ["NEWX"], "2017-06-01": garbage})
+    j = snapshot_jumps(snaps)
+    assert list(j["change"]) == [2, 120] and (j["change"] > MAX_JUMP).sum() == 1

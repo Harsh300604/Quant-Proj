@@ -83,7 +83,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 
 ## Phase 1: Setup, config and downloaders (week 1)
 
-**Status:** built and tested in the cloud session on 4 Nov 2026 (71 automated tests pass after the 5 Nov membership fixes, including a look-ahead guard). **Waiting for your manual checks on the laptop.**
+**Status:** built and tested in the cloud session on 4 Nov 2026 (74 automated tests pass after the 5 Nov membership fixes, including a look-ahead guard). **Waiting for your manual checks on the laptop.**
 
 **Goal:** the repo installs on D:, config loads, secrets are handled safely, and the downloads you run on your laptop have started.
 
@@ -120,7 +120,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 - [x] Decisions log and continuity files
 - [ ] **Your manual checks below**
 
-**Automated tests (71 passing):**
+**Automated tests (74 passing):**
 - `test_config.py`: base and pilot load; bad values are rejected; sampling parameters rejected; key budgets ($2.40 stop)
 - `test_paths.py`: C: paths (including `/mnt/c`) raise an error; D: paths resolve; library caches and temp redirected
 - `test_secrets.py`: a fake key never appears in log output, error messages or `repr`; only `.env` is read
@@ -155,7 +155,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
    ```powershell
    pytest -q
    ```
-   **Pass:** the last line says `71 passed` with no `failed`.
+   **Pass:** the last line says `74 passed` with no `failed`.
 4. Pilot downloads. About 50 MB goes to `D:\CreatED-Quant\qa_store\raw\`, taking roughly 5–10 minutes, mostly Wikipedia history at 1 request per second.
    ```powershell
    python -m quantagents.data.download.run_all --pilot

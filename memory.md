@@ -13,8 +13,8 @@ _Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
 | Current phase | **Phase 1: Setup, config and downloaders.** Built; 61 tests pass; **waiting for the user's manual checks on the laptop** |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Found look-ahead in Wikipedia rendering (old revisions use today's templates). Membership now verified against each revision's own wikitext; 2016-18 read from the template's own history. 71 tests pass |
-| Next step | User: `git pull`, rerun `run_all --pilot` (downloads ~200 revision texts + ~32 template versions, ~3-5 min), then `membership --diagnose`; map any unmatched company names in `reference/wiki_title_tickers.csv`. Then checks 5-6 |
+| Last step | 0 snapshots need review, but the 2017 spot-check showed a 'Historical components' list parsed as members. Fixed (skip historical sections, prefer template, jump check). 74 tests pass |
+| Next step | User: `git pull`, rerun `run_all --pilot` (fetches ~40 template versions, ~3-4 min), `membership --diagnose` (expect 0 review and 0 suspicious jumps), then `--year 2017/2020/2022` again vs Nasdaq announcements. Then check 6 (full download) |
 
 ## Spend so far
 

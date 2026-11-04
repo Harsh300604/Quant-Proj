@@ -147,3 +147,12 @@ def wiki_api_callback(html_for_revid, wikitext_for_revid, revid_for_time):
         rid = revid_for_time(q["rvstart"])
         return 200, {}, json.dumps(wiki_query(rid, q["rvstart"]))
     return cb
+
+
+def wiki_with_historical_section(current: list[str], historical: list[str]) -> str:
+    """Current list under 'Components', a longer bracket list under 'Historical components'."""
+    def ul(ts):
+        return "<ul>" + "".join(f"<li><a href='/wiki/Company_{t}'>Company {t}</a> ({t})</li>" for t in ts) + "</ul>"
+    return (f"<div><div class='mw-heading mw-heading2'><h2 id='Components'>Components</h2></div>{ul(current)}"
+            f"<h2><span class='mw-headline' id='Historical_components'>Historical components</span></h2>"
+            f"<p>As of March 2016, 459 companies have been components.</p>{ul(historical)}</div>")

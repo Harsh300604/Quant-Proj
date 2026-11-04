@@ -105,14 +105,32 @@ def _paren_tickers(el) -> set[str]:
     return {t for t in (clean_ticker(m) for m in _PAREN_TICKER.findall(el.text_content())) if t}
 
 
-def _best_container(root, extract) -> list[str]:
-    """Tightest single element (list, table or column block) whose tickers number 95-110.
+# Lists under these section headings describe PAST members or changes, never the current list.
+_EXCLUDED_SECTION = re.compile(r"histor|former|past|previous|change|removed|addition|deletion|delist", re.I)
 
-    Using the tightest container keeps out tickers mentioned elsewhere on the page,
-    e.g. in lists of past additions and removals.
+
+def _containers_with_section(root):
+    """Yield (container element, heading text of the section it starts in), in page order."""
+    heading = ""
+    for el in root.iter():
+        tag = el.tag if isinstance(el.tag, str) else ""
+        if tag in ("h2", "h3", "h4"):
+            heading = re.sub(r"\s+", " ", "".join(el.itertext())).strip()
+        elif tag in _CONTAINERS:
+            yield el, heading
+
+
+def _best_container(root, extract) -> list[str]:
+    """Tightest single element (list, table or column block) whose tickers number 95-110,
+    skipping sections about historical/former components or changes.
+
+    Using the tightest container keeps out tickers mentioned elsewhere on the page.
     """
     best, best_size = None, None
-    for el in root.iter(*_CONTAINERS):
+    for el, heading in _containers_with_section(root):
+        if _EXCLUDED_SECTION.search(heading) or any(
+                _EXCLUDED_SECTION.search("".join(h.itertext())) for h in el.iter("h2", "h3", "h4")):
+            continue  # in, or spanning, a section about past members or changes
         found = extract(el)
         if not _in_range(len(found)):
             continue
@@ -400,11 +418,12 @@ class WikipediaMembership(MembershipSource):
                 members, _ = parse_members(html)
                 self.manifest.record("membership", html_file, len(members), {"revid": revid})
                 written.append(html_file)
-            if "template" not in index[key]:
-                # list not in the article itself -> fetch the members template as of time t
+            if "template_v2" not in index[key]:
+                # unless the article has a proper members table, also fetch the members
+                # template as it was at time t (preferred over bracket lists, see snapshots())
                 html = read_text_gz(html_file)
                 info = None
-                if not parse_members(html)[0]:
+                if parse_members(html)[1] != "table":
                     tname = navbox_template_name(html)
                     trev = self._revision_at(tname, t, content=True) if tname else None
                     if trev:
@@ -412,7 +431,7 @@ class WikipediaMembership(MembershipSource):
                         write_text_gz(f, self._content(trev))
                         self.manifest.record("membership", f, 1, {"template": tname, "revid": trev["revid"]})
                         info = {"title": tname, "revid": trev["revid"], "timestamp": trev["timestamp"]}
-                index[key]["template"] = info
+                index[key]["template_v2"] = info
                 write_json_gz(index_file, index)
         self._download_wikitext(sorted({int(v["revid"]) for v in index.values()}))
         if index_file.exists():
@@ -473,14 +492,18 @@ class WikipediaMembership(MembershipSource):
             ts = pd.Timestamp(key)
             tickers, method = parsed.get(revid, ([], "missing"))
             ref = f"wiki:{revid}"
-            tinfo = info.get("template")
-            if not tickers and tinfo:
+            tinfo = info.get("template_v2", info.get("template"))
+            if method != "table" and tinfo:
+                # priority: article table > template (as of time t) > nasdaq links > (TICKER) text
                 tf = self.template_file(tinfo["title"], tinfo["revid"])
                 if tf.exists():
                     tk, unmatched = parse_template(read_text_gz(tf), title_map)
-                    un += [{"snapshot_utc": ts, "revid": revid, "title": u} for u in unmatched]
-                    ref = f"wiki:{revid}+tpl:{tinfo['revid']}"
-                    tickers, method = (tk, "template") if _in_range(len(tk)) else ([], "template-incomplete")
+                    if _in_range(len(tk)) or not tickers:
+                        un += [{"snapshot_utc": ts, "revid": revid, "title": u} for u in unmatched]
+                    if _in_range(len(tk)):
+                        tickers, method, ref = tk, "template", f"wiki:{revid}+tpl:{tinfo['revid']}"
+                    elif not tickers:
+                        method, ref = "template-incomplete", f"wiki:{revid}+tpl:{tinfo['revid']}"
             dr += [{"snapshot_utc": ts, "revid": revid, "ticker": d} for d in dropped_by_rev.get(revid, [])]
             status = "ok" if tickers else "needs_review"
             if not tickers:
@@ -576,6 +599,20 @@ def save_spells(spells: pd.DataFrame, derived_dir: Path) -> Path:
     return out
 
 
+MAX_JUMP = 25   # real index changes between two snapshots ~2 weeks apart are far smaller
+
+
+def snapshot_jumps(snaps: pd.DataFrame) -> pd.DataFrame:
+    """Tickers added/removed between consecutive OK snapshots (to spot bad parses)."""
+    ok = snaps[(snaps["status"] == "ok") & snaps["ticker"].notna()]
+    sets = [(t, set(g["ticker"])) for t, g in ok.groupby("snapshot_utc")]
+    rows = []
+    for (t0, a), (t1, b) in zip(sets, sets[1:]):
+        rows.append({"start": t0, "end": t1, "added": len(b - a), "removed": len(a - b),
+                     "change": len(a ^ b), "sample": ", ".join(sorted(b - a)[:6])})
+    return pd.DataFrame(rows, columns=["start", "end", "added", "removed", "change", "sample"])
+
+
 def snapshot_counts(snaps: pd.DataFrame) -> pd.DataFrame:
     g = snaps.groupby("snapshot_utc").agg(
         members=("ticker", lambda s: s.notna().sum()), status=("status", "first"),
@@ -629,7 +666,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         counts = snapshot_counts(snaps)
         counts["year"] = counts["snapshot_utc"].dt.year
-        print("Parser version: 5 (point-in-time: wikitext check + template history)")
+        print("Parser version: 6 (skips historical lists; template preferred; jump check)")
         print("Snapshots by year (ok / need review) and parse method:")
         for y, g_ in counts.groupby("year"):
             methods = ", ".join(f"{m}={n}" for m, n in g_["method"].value_counts().items())
@@ -647,9 +684,16 @@ def main(argv: list[str] | None = None) -> int:
                   "reference\\wiki_title_tickers.csv)")
             for r in u.sort_values("first").itertuples():
                 print(f"  {r.title!r}: {r.snapshots} snapshots, {r.first.date()} to {r.last.date()}")
+        jumps = snapshot_jumps(snaps)
+        big = jumps[jumps["change"] > MAX_JUMP]
+        top = jumps.sort_values("change", ascending=False).head(5)
+        print(f"\nLargest changes between consecutive snapshots (more than {MAX_JUMP} = suspicious):")
+        for r in top.itertuples():
+            print(f"  {r.start.date()} -> {r.end.date()}: +{r.added} / -{r.removed}  (added e.g. {r.sample})")
+        print(f"Suspicious jumps: {len(big)}")
         bad = counts[counts["status"] != "ok"]
         if bad.empty:
-            print("All snapshots parsed.")
+            print("All snapshots parsed." if big.empty else "All snapshots parsed, but check the suspicious jumps above.")
             return 0
         for _, row in bad.iloc[[0, len(bad) // 2, -1]].drop_duplicates("source_ref").iterrows():
             revid = int(str(row["source_ref"]).split(":")[1].split("+")[0])
@@ -665,8 +709,10 @@ def main(argv: list[str] | None = None) -> int:
     spells = pd.read_csv(f)
     for c in ("start_utc", "end_utc"):
         spells[c] = pd.to_datetime(spells[c], utc=True)
-    ch = changes_between(spells, date(args.year, 1, 2), date(args.year, 12, 31))
-    print(f"Membership changes found in {args.year} (dates are within ~2 weeks unless corrected by hand):")
+    ch = changes_between(spells, date(args.year, 1, 2), date(args.year + 1, 1, 15))
+    print(f"Membership changes found from {args.year}-01-02 to {args.year + 1}-01-15 "
+          f"(the December reconstitution appears in the 1 January snapshot; dates are within "
+          f"~2 weeks unless corrected by hand):")
     print(ch.to_string(index=False) if len(ch) else "  none")
     print(f"\nMembers on {args.year}-12-31: {len(members_at(spells, pd.Timestamp(date(args.year, 12, 31), tz='UTC')))}")
     return 0
