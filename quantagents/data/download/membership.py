@@ -165,7 +165,7 @@ def diagnose(html: str) -> str:
     lines.append(f"'List of NASDAQ-100 companies' box: {len(nav)} article links; first 12: {nav[:12]}")
     boxes = [el for el in root.iter("table", "div") if "navbox" in (el.get("class") or "")]
     lines.append(f"navigation boxes on page: {len(boxes)}; their headings: "
-                 f"{[re.sub(r'\\s+', ' ', b.text_content()[:60]).strip() for b in boxes[:4]]}")
+                 f"{[re.sub(r'\\s+', ' ', visible_text(b)[:60]).strip() for b in boxes[:4]]}")
     text = root.text_content()
     for word in ("Apple", "Microsoft", "Activision"):
         i = text.find(word)
@@ -215,13 +215,19 @@ def learn_link_tickers(html: str, members: list[str]) -> dict[str, str]:
     return out
 
 
+def visible_text(el) -> str:
+    """Text of an element without embedded <style>/<script> code (Wikipedia puts CSS
+    at the start of navigation boxes)."""
+    return "".join(el.xpath(".//text()[not(ancestor::style) and not(ancestor::script)]"))
+
+
 def navbox_titles(html: str) -> list[str]:
     """Article titles linked from the 'List of NASDAQ-100 companies' navigation box."""
     from lxml import html as lxml_html
     root = lxml_html.fromstring(html)
     for el in root.iter("table", "div"):
         cls = el.get("class") or ""
-        head = re.sub(r"\s+", " ", el.text_content()[:300]).lower()
+        head = re.sub(r"\s+", " ", visible_text(el)[:300]).lower()
         if "navbox" in cls and "nasdaq-100 compan" in head:
             titles = []
             for a in el.iter("a"):
@@ -505,7 +511,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         counts = snapshot_counts(snaps)
         counts["year"] = counts["snapshot_utc"].dt.year
-        print("Parser version: 3 (navbox)")
+        print("Parser version: 4 (navbox, ignores CSS)")
         print("Snapshots by year (ok / need review) and parse method:")
         for y, g_ in counts.groupby("year"):
             methods = ", ".join(f"{m}={n}" for m, n in g_["method"].value_counts().items())

@@ -112,8 +112,12 @@ def wiki_navbox_html(titles: list[str]) -> str:
     """2016-2018 layout: members only as names in the navigation box (no tickers)."""
     links = " · ".join(f"<li><a href='/wiki/{t.replace(' ', '_')}'>{t}</a></li>" for t in titles)
     return ("<div><p>As of March 2016, 459 companies have been components. Apple (AAPL) ...</p>"
-            "<div role='navigation' class='navbox'><table class='nowraplinks navbox-inner'>"
-            "<tr><th><a href='/wiki/Template:NASDAQ-100'>v</a> List of NASDAQ-100 companies</th></tr>"
+            "<style data-mw-deduplicate='x'>.mw-parser-output .navbar{display:inline;font-size:88%}"
+            ".mw-parser-output .hlist dl,.mw-parser-output .hlist ol{margin:0}</style>"
+            "<div role='navigation' class='navbox'><style>" + ".mw-parser-output .navbox{border:1px solid #a2a9b1}" * 12 + "</style>"
+            "<table class='nowraplinks navbox-inner'>"
+            "<tr><th><style>" + ".mw-parser-output .navbar{display:inline;font-size:88%}" * 12 + "</style>"
+            "<a href='/wiki/Template:NASDAQ-100'>v</a> List of NASDAQ-100 companies</th></tr>"
             f"<tr><td><ul>{links}</ul></td></tr></table></div>"
             "<div class='navbox'><table><tr><th>Nasdaq, Inc.</th></tr><tr><td>"
             "<a href='/wiki/Nasdaq_Stock_Market'>Nasdaq</a></td></tr></table></div></div>")
