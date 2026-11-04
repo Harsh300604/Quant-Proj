@@ -14,7 +14,7 @@ _Last updated: 2026-11-05 (Phase 1: full download running; funding stages added)
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
 | Last step | Full download complete, every source OK |
-| Next step | User sends Yahoo-missing and SEC-missing lists and answers share classes; then tick Phase 1 and start Phase 2 |
+| Next step | User runs `python scripts\coverage_quick.py` and decides the delisted-price source (and share classes). Then: SEC historical-CIK lookup fix, tick Phase 1, start Phase 2 |
 
 ## Spend so far and funding stage
 
@@ -61,6 +61,8 @@ Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan
 - The `.ps1` scripts have never been executed (no PowerShell in the cloud). Fix them from the user's error output if needed.
 
 ## Open questions waiting on the user
+
+- **Delisted prices (blocks Phase 1 close):** 43 of 192 tickers have no Yahoo prices. Options: WRDS/CRSP via UT Dallas (free if available) / one-month paid vendor download (client money, not API) / accept and measure the gap.
 
 - **Share classes:** 2014-18 membership (template) is company-level; 2019-23 (table) is share-class level. Recommended: company-level universe everywhere, secondary classes merged into the primary (reverses D6). Waiting for the answer.
 
