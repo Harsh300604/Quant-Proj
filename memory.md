@@ -13,8 +13,8 @@ _Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
 | Current phase | **Phase 1: Setup, config and downloaders.** Built; 61 tests pass; **waiting for the user's manual checks on the laptop** |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Membership clean (0 review, 0 jumps; 2017 matches Nasdaq). Added Dec 2016 date corrections + 6 name mappings |
-| Next step | Waiting for the user's decision on share classes (company-level recommended). Then: user reruns pilot, checks 2020/2022 Dec changes, then check 6 (full download) |
+| Last step | Check 5 passed: Dec 2016/2020/2022 reconstitutions correct; 2016 mid-year dates approximate (known issue) |
+| Next step | User runs check 6 (full download) and answers the share-class question (company-level recommended). Then Phase 1 is done -> Phase 2 |
 
 ## Spend so far
 
