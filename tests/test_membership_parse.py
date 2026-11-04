@@ -105,3 +105,45 @@ def test_diagnose_describes_layout():
     from quantagents.data.download.membership import diagnose
     out = diagnose(wiki_table_html(BASE_MEMBERS[:10] + ["AAPL"]).replace("Company AAPL", "Apple Inc."))
     assert "tables:" in out and "Apple" in out
+
+
+# ---------------------------------------------------------------- navbox method (2016-2018)
+def test_learn_titles_and_parse_navbox():
+    from quantagents.data.download.membership import learn_link_tickers, parse_navbox
+    from tests.fixtures.samples import wiki_linked_paren_html, wiki_navbox_html
+    members = BASE_MEMBERS + ["AAPL", "MSFT"]
+    title_map = learn_link_tickers(wiki_linked_paren_html(members), members)
+    assert title_map["Company AAPL"] == "AAPL" and len(title_map) == 100
+    # one member left, one unknown company joined
+    titles = [f"Company {t}" for t in members if t != "MSFT"] + ["Brand New Corp"]
+    tickers, unmatched = parse_navbox(wiki_navbox_html(titles), title_map)
+    assert len(tickers) == 99 and "MSFT" not in tickers
+    assert unmatched == ["Brand New Corp"]       # reported, never guessed
+
+
+def test_snapshots_use_navbox_for_failed_revisions(store):
+    from datetime import datetime, timezone
+    from quantagents.data.download.base import Manifest, write_json_gz, write_text_gz
+    from quantagents.data.download.membership import WikipediaMembership
+    from tests.fixtures.samples import wiki_linked_paren_html, wiki_navbox_html
+    raw = store / "raw"
+    src = WikipediaMembership(raw, Manifest(raw))
+    members = BASE_MEMBERS + ["AAPL", "MSFT"]
+    write_text_gz(src.folder / "revisions" / "1.html.gz", wiki_linked_paren_html(members))
+    write_text_gz(src.folder / "revisions" / "2.html.gz",
+                  wiki_navbox_html([f"Company {t}" for t in members] + ["Brand New Corp"]))
+    t1 = datetime(2015, 1, 1, tzinfo=timezone.utc).isoformat()
+    t2 = datetime(2016, 6, 15, tzinfo=timezone.utc).isoformat()
+    write_json_gz(src.folder / "snapshots.json.gz", {t1: {"revid": 1, "rev_timestamp": ""},
+                                                     t2: {"revid": 2, "rev_timestamp": ""}})
+    snaps = src.snapshots()
+    late = snaps[snaps["source_ref"] == "wiki:2"]
+    assert set(late["status"]) == {"ok"} and set(late["method"]) == {"navbox"} and len(late) == 100
+    assert list(src.unmatched["title"]) == ["Brand New Corp"]
+
+
+def test_manual_title_map_file(tmp_path):
+    from quantagents.data.download.membership import load_title_tickers
+    f = tmp_path / "w.csv"
+    f.write_text("# comment\ntitle,ticker\nBrand New Corp,bnew\n", encoding="utf-8")
+    assert load_title_tickers(f) == {"Brand New Corp": "BNEW"}

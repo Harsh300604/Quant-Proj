@@ -13,8 +13,8 @@ _Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
 | Current phase | **Phase 1: Setup, config and downloaders.** Built; 61 tests pass; **waiting for the user's manual checks on the laptop** |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | User passed manual checks 1–3. Pilot download (check 4) worked except membership before ~2018 (parser); parser fixed, 64 tests pass |
-| Next step | User does `git pull`, reruns `run_all --pilot` (membership pages are cached, so it's fast). If snapshots still need review, user sends the `membership --diagnose` output. Then checks 5–6 |
+| Last step | Pilot rerun: 107 members (2015), 101 (2023), 5th stock AAL; 32 snapshots (2016-18) failed. Added navbox method; 67 tests pass |
+| Next step | User: `git pull`, rerun `run_all --pilot`, then `membership --diagnose`; fill `reference/wiki_title_tickers.csv` for real companies listed as unmatched. Then checks 5-6 |
 
 ## Spend so far
 

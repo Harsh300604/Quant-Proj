@@ -100,3 +100,20 @@ def wiki_paren_cells_html(tickers: list[str], history: list[str]) -> str:
     rows = "".join(f"<tr><td>Company {t} ({t})</td><td>Tech</td></tr>" for t in tickers)
     hist = "<p>" + " ".join(f"Former member ({t})." for t in history) + "</p>"
     return f"<div><table><tr><th>Company</th><th>Sector</th></tr>{rows}</table>{hist}</div>"
+
+
+def wiki_linked_paren_html(tickers: list[str]) -> str:
+    """'Company (TICKER)' list where each company links to its Wikipedia article."""
+    items = "".join(f"<li><a href='/wiki/Company_{t}'>Company {t}</a> ({t})</li>" for t in tickers)
+    return f"<div><h2>Components</h2><ul>{items}</ul></div>"
+
+
+def wiki_navbox_html(titles: list[str]) -> str:
+    """2016-2018 layout: members only as names in the navigation box (no tickers)."""
+    links = " · ".join(f"<li><a href='/wiki/{t.replace(' ', '_')}'>{t}</a></li>" for t in titles)
+    return ("<div><p>As of March 2016, 459 companies have been components. Apple (AAPL) ...</p>"
+            "<div role='navigation' class='navbox'><table class='nowraplinks navbox-inner'>"
+            "<tr><th><a href='/wiki/Template:NASDAQ-100'>v</a> List of NASDAQ-100 companies</th></tr>"
+            f"<tr><td><ul>{links}</ul></td></tr></table></div>"
+            "<div class='navbox'><table><tr><th>Nasdaq, Inc.</th></tr><tr><td>"
+            "<a href='/wiki/Nasdaq_Stock_Market'>Nasdaq</a></td></tr></table></div></div>")

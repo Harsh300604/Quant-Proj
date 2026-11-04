@@ -173,6 +173,77 @@ def diagnose(html: str) -> str:
     return "\n".join(lines)
 
 
+# ----------------------------------------------------------------------------- navbox method
+# Mid-2016 to mid-2018 the article listed members only in the "List of NASDAQ-100 companies"
+# navigation box: company names linked to their Wikipedia articles, without tickers. We learn
+# "article title -> ticker" from the revisions that do show tickers, then read the box.
+_WORD_TICKER = re.compile(r"(?<![A-Za-z])([A-Z]{1,5}(?:[.\-][A-Z])?)(?![A-Za-z])")
+
+
+def wiki_title(href: str | None) -> str | None:
+    """'/wiki/Apple_Inc.#x' -> 'Apple Inc.'; None for non-article links (Template:, File:, ...)."""
+    from urllib.parse import unquote
+    if not href or not href.startswith("/wiki/"):
+        return None
+    t = unquote(href[len("/wiki/"):].split("#")[0]).replace("_", " ").strip()
+    return None if not t or ":" in t else t
+
+
+def learn_link_tickers(html: str, members: list[str]) -> dict[str, str]:
+    """From a revision with known members: {company article title: ticker}.
+
+    For every list item / table row that mentions exactly one member ticker, the first
+    article link in it is taken to be that company.
+    """
+    from lxml import html as lxml_html
+    mset = set(members)
+    out: dict[str, str] = {}
+    for el in lxml_html.fromstring(html).iter("li", "tr"):
+        hits = {clean_ticker(m) for m in _WORD_TICKER.findall(el.text_content())} & mset
+        if len(hits) != 1:
+            continue
+        for a in el.iter("a"):
+            t = wiki_title(a.get("href"))
+            if t:
+                out.setdefault(t, hits.pop())
+                break
+    return out
+
+
+def navbox_titles(html: str) -> list[str]:
+    """Article titles linked from the 'List of NASDAQ-100 companies' navigation box."""
+    from lxml import html as lxml_html
+    root = lxml_html.fromstring(html)
+    for el in root.iter("table", "div"):
+        cls = el.get("class") or ""
+        head = re.sub(r"\s+", " ", el.text_content()[:300]).lower()
+        if "navbox" in cls and "nasdaq-100 compan" in head:
+            titles = []
+            for a in el.iter("a"):
+                t = wiki_title(a.get("href"))
+                if t and "nasdaq-100" not in t.lower() and t not in titles:
+                    titles.append(t)
+            return titles
+    return []
+
+
+def load_title_tickers(path: Path | None = None) -> dict[str, str]:
+    """Hand-made {article title: ticker} for names the automatic matching cannot learn."""
+    path = path or REFERENCE / "wiki_title_tickers.csv"
+    if not path.exists():
+        return {}
+    df = pd.read_csv(path, comment="#", dtype=str).fillna("")
+    return {r.title.strip(): r.ticker.strip().upper() for r in df.itertuples() if r.title.strip()}
+
+
+def parse_navbox(html: str, title_map: dict[str, str]) -> tuple[list[str], list[str]]:
+    """(member tickers, unmatched titles) from the navigation box."""
+    titles = navbox_titles(html)
+    tickers = sorted({title_map[t] for t in titles if t in title_map})
+    unmatched = [t for t in titles if t not in title_map]
+    return tickers, unmatched
+
+
 @dataclass
 class WikipediaMembership(MembershipSource):
     raw_dir: Path
@@ -232,20 +303,51 @@ class WikipediaMembership(MembershipSource):
 
     # --- parse ------------------------------------------------------------------------
     def snapshots(self) -> pd.DataFrame:
+        """One row per (snapshot, member). Also sets ``self.unmatched``: navbox names that
+        could not be matched to a ticker (columns snapshot_utc, revid, title)."""
+        self.unmatched = pd.DataFrame(columns=["snapshot_utc", "revid", "title"])
         index_file = self.folder / "snapshots.json.gz"
         if not index_file.exists():
-            return pd.DataFrame(columns=["snapshot_utc", "ticker", "source_ref", "status"])
+            return pd.DataFrame(columns=["snapshot_utc", "ticker", "source_ref", "status", "method"])
         index = read_json_gz(index_file)
         bad = load_bad_revisions()
+        html: dict[int, str] = {}
         parsed: dict[int, tuple[list[str], str]] = {}
+        for info in index.values():
+            revid = int(info["revid"])
+            if revid in bad or revid in parsed:
+                continue
+            f = self.folder / "revisions" / f"{revid}.html.gz"
+            if f.exists():
+                html[revid] = read_text_gz(f)
+                parsed[revid] = parse_members(html[revid])
+            else:
+                parsed[revid] = ([], "missing")
+
+        # second pass: revisions that failed -> navigation box, using titles learned from the rest
+        title_map: dict[str, str] = {}
+        for revid, (tickers, _) in sorted(parsed.items()):
+            if tickers:
+                for t, tk in learn_link_tickers(html[revid], tickers).items():
+                    title_map[t] = tk          # later revisions win (current names)
+        title_map.update(load_title_tickers())
+        unmatched_rows = []
+        for revid, (tickers, method) in parsed.items():
+            if tickers or revid not in html:
+                continue
+            nav, unmatched = parse_navbox(html[revid], title_map)
+            if _in_range(len(nav)):
+                parsed[revid] = (nav, "navbox")
+            for t in unmatched:
+                unmatched_rows.append({"revid": revid, "title": t})
+
         rows = []
+        unmatched_by_rev = pd.DataFrame(unmatched_rows, columns=["revid", "title"])
+        un = []
         for key, info in sorted(index.items()):
             revid = int(info["revid"])
             if revid in bad:
                 continue
-            if revid not in parsed:
-                f = self.folder / "revisions" / f"{revid}.html.gz"
-                parsed[revid] = parse_members(read_text_gz(f)) if f.exists() else ([], "missing")
             tickers, method = parsed[revid]
             status = "ok" if tickers else "needs_review"
             ts = pd.Timestamp(key)
@@ -255,6 +357,9 @@ class WikipediaMembership(MembershipSource):
             for tk in tickers:
                 rows.append({"snapshot_utc": ts, "ticker": tk, "source_ref": f"wiki:{revid}",
                              "status": status, "method": method})
+            for t in unmatched_by_rev.loc[unmatched_by_rev["revid"] == revid, "title"]:
+                un.append({"snapshot_utc": ts, "revid": revid, "title": t})
+        self.unmatched = pd.DataFrame(un, columns=["snapshot_utc", "revid", "title"])
         return pd.DataFrame(rows)
 
 
@@ -399,6 +504,15 @@ def main(argv: list[str] | None = None) -> int:
         for y, g_ in counts.groupby("year"):
             methods = ", ".join(f"{m}={n}" for m, n in g_["method"].value_counts().items())
             print(f"  {y}: {int((g_['status'] == 'ok').sum())} ok / {int((g_['status'] != 'ok').sum())} review  ({methods})")
+        if len(src.unmatched):
+            u = src.unmatched.groupby("title").agg(snapshots=("revid", "size"),
+                                                   first=("snapshot_utc", "min"),
+                                                   last=("snapshot_utc", "max")).reset_index()
+            print(f"\nNames in the 'List of NASDAQ-100 companies' box with no known ticker ({len(u)}):")
+            print("(non-companies here are harmless; for companies, add 'title,ticker' rows to "
+                  "reference\\wiki_title_tickers.csv)")
+            for r in u.sort_values("first").itertuples():
+                print(f"  {r.title!r}: {r.snapshots} snapshots, {r.first.date()} to {r.last.date()}")
         bad = counts[counts["status"] != "ok"]
         if bad.empty:
             print("All snapshots parsed.")

@@ -1,0 +1,4 @@
+# Wikipedia article title -> ticker, for company names in the 2016-2018 "List of NASDAQ-100
+# companies" box that the automatic matching could not learn. Names come from:
+#   python -m quantagents.data.download.membership --diagnose
+title,ticker

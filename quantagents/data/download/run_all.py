@@ -111,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
         if not snaps.empty:
             spells, warnings = build_spells(snaps, load_manual_changes())
             out = save_spells(spells, paths.derived)
+            membership.unmatched.to_csv(paths.derived / "membership_unmatched_names.csv", index=False)
             counts = snapshot_counts(snaps)
             bad = counts[counts["status"] != "ok"]
             counts.to_csv(paths.derived / "membership_snapshot_counts.csv", index=False)
