@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantagents"
+version = "0.1.0"
+description = "LLM multi-agent NASDAQ-100 portfolio research backtest (point-in-time)"
+requires-python = ">=3.12"
+readme = "README.md"
+
+[tool.setuptools.packages.find]
+include = ["quantagents*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

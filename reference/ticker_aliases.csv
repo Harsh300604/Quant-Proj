@@ -1,0 +1,9 @@
+# Tickers whose Yahoo Finance symbol differs from the symbol used in the index at the time.
+# ticker = symbol as it appears in the NASDAQ-100 membership; yahoo_symbol = symbol to query.
+# Add rows when raw/prices/missing.csv shows a renamed company. Verify each row on Yahoo.
+ticker,yahoo_symbol,note
+FB,META,Facebook renamed Meta Platforms (2022)
+PCLN,BKNG,Priceline renamed Booking Holdings (2018)
+CTRP,TCOM,Ctrip renamed Trip.com Group (2019)
+SYMC,GEN,"Symantec -> NortonLifeLock (NLOK 2019) -> Gen Digital (GEN 2022); verify history"
+NLOK,GEN,NortonLifeLock renamed Gen Digital (2022)

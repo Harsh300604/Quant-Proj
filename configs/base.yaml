@@ -1,0 +1,72 @@
+# QuantAgents base configuration. Other configs (pilot.yaml, ...) start from this one
+# with `extends: base.yaml` and override only what differs.
+
+run_id: base
+variant: baseline            # baseline | enhanced
+names_hidden: false
+replicate: 0
+
+storage:
+  # Everything the project writes (data, DuckDB, caches, runs, logs, temp) goes under here.
+  # Must not be on C:. Can be overridden for one session with the QA_STORE_ROOT environment variable.
+  root: D:/CreatED-Quant/qa_store
+
+dates:
+  warmup_start: 2014-01-01   # data starts here so indicators/covariances are ready by Jan 2015
+  start: 2015-01-01
+  end: 2023-12-31
+
+universe:
+  index: NDX
+  tickers: null              # null = historical NASDAQ-100 members on each date
+  add_removed_member: false  # pilot only: add one member that later left the index
+
+rebalance: monthly_first_trading_day
+decision_time: close         # as_of = 4 pm ET close of the rebalance day (decision D9)
+execution: next_open
+cost_bps: 10
+
+constraints:
+  min_multiple_of_index: 0.0
+  max_multiple_of_index: 2.0
+  sector_band_pp: 2.0        # decision D5 (open decision 3)
+  long_only: true
+
+selection:
+  max_views: 20
+  max_per_sector: 3
+
+views:
+  horizon_months: 3
+  rating_to_excess_return:   # 3-month expected excess return vs. the index (decision D5)
+    strong_sell: -0.06
+    sell: -0.03
+    hold: 0.0
+    buy: 0.03
+    strong_buy: 0.06
+
+black_litterman:
+  delta: 2.5
+  tau: 0.05
+  omega: idzorek
+  cov: ledoit_wolf_252d
+
+models:
+  tier: dev                  # dev | paper | robustness
+  tiers:
+    dev:        {memo: claude-haiku-5-5, committee: claude-haiku-5-5}
+    paper:      {memo: claude-haiku-5-5, committee: claude-sonnet-5-5}
+    robustness: {memo: claude-haiku-5-5, committee: claude-opus-5-5}
+  memo:      {effort: low, max_tokens: 1500}
+  committee: {thinking: between_tools, effort: medium, max_tokens: 4000}
+
+budget:
+  key_label: personal        # which key is in .env: personal | student (see configs/keys.yaml)
+  run_budget_usd: 1.00       # per-run cap; the run stops if projected or actual spend exceeds it
+  inr_per_usd: 88.0          # exchange rate for showing costs in INR
+
+downloads:
+  wikipedia_requests_per_second: 1
+  sec_requests_per_second: 8         # SEC allows at most 10
+  alpaca_requests_per_minute: 180    # free plan allows 200
+  membership_snapshot_days: [1, 15]  # Wikipedia snapshots on these days of every month

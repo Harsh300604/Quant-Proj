@@ -83,46 +83,54 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 
 ## Phase 1: Setup, config and downloaders (week 1)
 
+**Status:** built and tested in the cloud session on 4 Nov 2026 (61 automated tests pass). **Waiting for your manual checks on the laptop.**
+
 **Goal:** the repo installs on D:, config loads, secrets are handled safely, and the downloads you run on your laptop have started.
 
 **Files:**
-- `pyproject.toml` and pinned `requirements.txt`, `.gitignore`, `.env.example`
-- `scripts/env.ps1` and `scripts/setup.ps1`: create the venv on D: and set cache and temp folders for the session
+- `pyproject.toml`, pinned `requirements.txt`, `.gitignore`, `.env.example`, `README.md` (with the key swap checklist)
+- `scripts/env.ps1` and `scripts/setup.ps1`: per-session cache and temp folders on D:; venv on D:
 - `configs/base.yaml`, `configs/pilot.yaml`, `configs/keys.yaml` (key label → budget)
-- `quantagents/config.py`: pydantic-validated config loader
-- `quantagents/paths.py`: all storage paths come from config; refuses anything on C:
-- `quantagents/secrets.py`: reads `.env`; masks key values in logs and errors
-- `quantagents/data/download/` with `base.py` (source interface) and one script per source: `prices.py`, `news.py`, `edgar.py`, `membership.py`, `factors.py`, `riskfree.py`
-- `quantagents/data/download/run_all.py`: resumable, with progress shown and a `--pilot` mode (5 tickers)
-- `scripts/check_env.py`: checks Python version, D: paths, `.env` keys present (shown as present/missing, never their values), C: free space before and after
-- `decisions.md`
+- `quantagents/config.py`: pydantic-validated config loader; rejects `temperature`/`top_p`/`top_k` and non-allowed model IDs
+- `quantagents/paths.py`: all storage paths come from config; refuses anything on C:; redirects yfinance, matplotlib and numba caches and temp files to D:
+- `quantagents/env_secrets.py` (renamed from `secrets.py`, see D17): reads `.env` only; masks values in logs and errors
+- `quantagents/logs.py`: logging with secret redaction
+- `quantagents/data/download/`:
+  - `base.py`: source interfaces, HTTP client, manifest
+  - one module per source: `membership.py`, `prices.py`, `news.py`, `edgar.py`, `factors.py` (French factors and FRED `DTB3`; replaces the planned `riskfree.py`)
+  - `run_all.py`
+- `reference/`: `ticker_aliases.csv`, `cik_overrides.csv`, `ndx_changes_manual.csv`, `membership_bad_revisions.csv` (hand-maintained corrections)
+- `scripts/check_env.py`
+- `decisions.md`, `memory.md`, `handoff.md`
 
 **Tasks:**
-- [ ] Project skeleton, dependencies (Python 3.11 recommended, 3.10+ supported)
-- [ ] `env.ps1` and `setup.ps1` (per-session environment variables only)
-- [ ] Config schema and loader; `base.yaml` and `pilot.yaml`. Pilot: AAPL, MSFT, NVDA, AMZN, plus one later-removed member (to be chosen once the membership file exists)
-- [ ] Path guard that rejects C: paths
-- [ ] `.env` loading and secret masking
-- [ ] Source interface: `MembershipSource`, `PriceSource`, `NewsSource`, `FundamentalsSource`
-- [ ] Downloaders. Each is resumable, rate-limited (SEC ≤ 10 requests per second with a User-Agent), saves raw files plus a manifest entry, and writes to D: only:
-  - [ ] Membership reconstruction from Wikipedia plus a hand-check list
-  - [ ] yfinance prices, 2014–2023, for every ticker that was ever a member, plus QQQ and ^NDX
-  - [ ] Alpaca news, 2015–2023
-  - [ ] SEC EDGAR company facts and submissions
-  - [ ] Kenneth French factors (FF3 and momentum, daily and monthly) and FRED `DTB3`
-- [ ] `check_env.py`
-- [ ] Start the decisions log
+- [x] Project skeleton and dependencies (**Python 3.12**; see D15)
+- [x] `env.ps1` and `setup.ps1` (per-session environment variables only). *Not executable in the cloud session (no PowerShell); first real run is on your laptop.*
+- [x] Config schema and loader; `base.yaml` and `pilot.yaml`. Pilot: AAPL, MSFT, NVDA, AMZN, plus one later-removed member, chosen automatically (the first alphabetically that has Yahoo data)
+- [x] Path guard that rejects C: paths
+- [x] `.env` loading and secret masking
+- [x] Source interfaces: `MembershipSource`, `PriceSource`, `NewsSource`, `FundamentalsSource`
+- [x] Downloaders. Each is resumable, rate-limited, shows a progress bar, saves raw files plus a manifest entry, and writes under the storage root only:
+  - [x] Membership from Wikipedia page-history snapshots (1st and 15th of each month), with hand-correction files (D16), plus `--year` change report
+  - [x] yfinance prices for every ticker that was ever a member, plus QQQ and ^NDX; gaps listed in `raw\prices\missing.csv`; manual CSV fallback
+  - [x] Alpaca news, 2015–2023 (headline and summary, not full text)
+  - [x] SEC EDGAR company facts and submissions (acceptance times, SIC code, address); missing CIKs listed
+  - [x] Kenneth French factors (FF3 and momentum, daily and monthly) and FRED `DTB3`
+- [x] `check_env.py`
+- [x] Decisions log and continuity files
+- [ ] **Your manual checks below**
 
-**Automated tests:**
-- `test_config.py`: base and pilot load; bad values are rejected (e.g., max multiple < min multiple, unknown tier, a model ID not on the allowed list)
-- `test_paths.py`: a C: path raises an error; D: paths resolve
-- `test_secrets.py`: a fake key never appears in log output, error messages or `repr`
-- `test_membership_parse.py`: replaying a small recorded change table gives the right members on given dates
-- `test_downloaders_offline.py`: downloaders run against recorded sample responses (no network) and write the expected files and manifest
+**Automated tests (61 passing):**
+- `test_config.py`: base and pilot load; bad values are rejected; sampling parameters rejected; key budgets ($2.40 stop)
+- `test_paths.py`: C: paths (including `/mnt/c`) raise an error; D: paths resolve; library caches and temp redirected
+- `test_secrets.py`: a fake key never appears in log output, error messages or `repr`; only `.env` is read
+- `test_membership_parse.py`: table and list parsing; spells from snapshots; manual corrections; change report
+- `test_downloaders_offline.py`: every downloader against mocked responses (no network): files, manifest, resume, retries, missing lists
+- `test_run_all_offline.py`: the full `--pilot` run end to end with all services mocked
 
 **Manual checks (on your laptop):**
 
-1. One-time setup:
+1. One-time setup. If Python 3.12+ isn't installed, first install it to `D:\Python312` (python.org installer → "Customize installation" → set the location).
    ```powershell
    cd D:\CreatED-Quant
    git clone https://github.com/Harsh300604/Quant-Proj quantagents
@@ -130,28 +138,47 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
    git checkout claude/nifty-albattani-era22n
    Set-ExecutionPolicy -Scope Process Bypass -Force; .\scripts\setup.ps1
    ```
-   **Pass:** it ends with `Setup complete. venv: D:\CreatED-Quant\quantagents\.venv`. **Fail:** any red error, or a path starting with `C:`.
-2. Copy `.env.example` to `.env` and fill in `ANTHROPIC_API_KEY`, `ALPACA_API_KEY`, `ALPACA_SECRET_KEY`, and `SEC_USER_AGENT` (e.g., `QuantAgents research yourname@example.com`). Then:
+   **Pass:** it ends with a green `Setup complete. venv: D:\CreatED-Quant\quantagents\.venv`. **Fail:** any red error, or a path starting with `C:` (other than the Python install itself, if it was already on C:).
+2. Open `.env` in Notepad (`notepad .env`) and fill in `ALPACA_API_KEY`, `ALPACA_SECRET_KEY`, `SEC_USER_AGENT` (e.g., `QuantAgents research yourname@example.com`) and `ANTHROPIC_API_KEY` (your personal key). Save. Then:
    ```powershell
    . .\scripts\env.ps1; python scripts\check_env.py
    ```
-   **Pass:** every line says `OK`, keys say `present` (never the key itself), all paths start with `D:\`, and the line `C: free space change: 0.0 GB` (or within ±0.1 GB). **Fail:** any `MISSING`, a C: path, or any part of a key printed.
+   **Pass:**
+   - every line is `OK` or `INFO`;
+   - the four keys say `present` (never the key itself);
+   - repo, venv, storage, `PIP_CACHE_DIR`, `UV_CACHE_DIR`, `TMP` and `TEMP` are all on `D:`;
+   - the last line is `All checks passed.`
+
+   Run it a second time: the C: line should say `C: free space change since last check: +0.0 GB` (anything within ±0.1 GB is fine).
+   **Fail:** any `FAIL` or `MISSING`, or any part of a key printed.
 3. Run the tests:
    ```powershell
    pytest -q
    ```
-   **Pass:** the last line says `N passed` with no `failed`.
-4. Pilot downloads (small, ≈ 50 MB to `D:\CreatED-Quant\qa_store\raw\`):
+   **Pass:** the last line says `61 passed` with no `failed`.
+4. Pilot downloads. About 50 MB goes to `D:\CreatED-Quant\qa_store\raw\`, taking roughly 5–10 minutes, mostly Wikipedia history at 1 request per second.
    ```powershell
    python -m quantagents.data.download.run_all --pilot
    ```
-   **Pass:** a summary table with a row count above 0 for each source. Membership shows about 100–104 members on 2015-01-02 and on 2023-12-01.
-5. Start the full downloads; they can run overnight and resume if stopped. Expect roughly 1–3 GB in `D:\CreatED-Quant\qa_store\raw\`; I'll confirm the size after the pilot download.
+   **Pass:**
+   - `members on 2015-01-02` and `members on 2023-12-01` are each between 100 and 104;
+   - a line `pilot 5th stock (left the index later): XXXX`;
+   - the summary table shows `OK` with rows above 0 for membership, prices, edgar, news, factors and riskfree.
+
+   **Fail:** any `FAILED` or `SKIPPED`. Send me the last 30 lines and the file `D:\CreatED-Quant\qa_store\logs\download_<date>.log` (it contains no keys).
+5. Spot-check membership against Nasdaq's official announcements:
+   ```powershell
+   python -m quantagents.data.download.membership --year 2017
+   ```
+   Then search the web for "Nasdaq-100 annual changes December 2017" and open Nasdaq's announcement.
+   **Pass:** the tickers listed as `added`/`removed` around mid-December match the announcement, and the dates are within about 2 weeks. Repeat for 2020 and 2022. **Fail:** a ticker is missing or extra. Tell me which; I'll add a correction to `reference\ndx_changes_manual.csv`.
+6. Start the full downloads (only after checks 1–5 pass). They can run overnight; if stopped, rerun the same command and it resumes. Expect roughly 1–2 GB in `D:\CreatED-Quant\qa_store\raw\`, most of it SEC data and news. News takes the longest (several hours).
    ```powershell
    python -m quantagents.data.download.run_all --all
    ```
-   **Pass:** the progress bars move; re-running skips finished parts.
-6. Spot-check membership against Nasdaq's published changes. I'll provide 3 dated changes to check by hand.
+   **Pass:** the progress bars move, the summary shows `OK` for every source, and a rerun finishes quickly because it skips completed files. Then send me:
+   - the number of tickers in `D:\CreatED-Quant\qa_store\raw\prices\missing.csv` (companies with no Yahoo data);
+   - the number in `D:\CreatED-Quant\qa_store\raw\edgar\missing.csv`.
 
 **API spend:** $0. **Depends on:** nothing.
 

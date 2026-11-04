@@ -21,6 +21,12 @@ The final handoff documents (`docs/handoff.md`, `docs/design.md`, `docs/mentorin
 | 2026-11-04 | D12 | Session continuity files at repo root: `handoff.md` (prompt for a new dev chat), `memory.md` (current state), `decisions.md` (this log). Updated at the end of every phase or work block | User | The cloud session may disconnect (credit limit) |
 | 2026-11-04 | D13 | `docs/mentoring.md` is written at the end of the project and covers **16 sessions of 60 minutes**. The mentor first builds and tests the whole project, then uses it as the reference while teaching the student to develop it | User | The mentor's preferred teaching style |
 | 2026-11-04 | D14 | The Alpaca account (news) is created by the developer/mentor, not the client | User | Free, and only needed for downloading news |
+| 2026-11-04 | D15 | **Python 3.12** required (brief says 3.10+). Pins: numpy 2.2.6, pandas 2.3.3, pandas-ta 0.4.71b0, numba 0.61.2 | Developer | The current pandas-ta release (needed for indicators) requires Python ≥ 3.12 and numpy ≤ 2.2 via numba |
+| 2026-11-04 | D16 | Membership = snapshots of the Wikipedia article as it stood on the 1st and 15th of each month (via the page-history API), parsed for tickers; boundaries corrected by hand from Nasdaq announcements (`reference/ndx_changes_manual.csv`) | Developer | Free (D2); snapshots are point-in-time with respect to Wikipedia; twice-monthly dates are accurate to ~2 weeks before correction |
+| 2026-11-04 | D17 | Secrets module named `quantagents/env_secrets.py`, not `secrets.py` | Developer | Avoids confusion with Python's built-in `secrets` module |
+| 2026-11-04 | D18 | Student key stops at 95% of $150 ($142.50); every call also gets a worst-case pre-check (Phase 3) | Developer | The $150 cap must never be crossed |
+| 2026-11-04 | D19 | Downloads: prices from 2014-01-01 to end + 100 days (to measure 3-month view outcomes); news from 45 days before the start (not before 2015-01-01), headline and summary only (no full article text) | Developer | Memos need recent news; summaries keep tokens and storage low |
+| 2026-11-04 | D20 | `configs/base.yaml` defaults to the `dev` tier; full-run configs will set `tier: paper` explicitly | Developer | Prevents accidental Sonnet spend on the personal key |
 
 ## Deviations from PROJECT_BRIEF.md
 
@@ -29,6 +35,8 @@ The final handoff documents (`docs/handoff.md`, `docs/design.md`, `docs/mentorin
 | 2026-11-04 | Index weights preferably official | Derived cap weights without capping rules | No free official history (D6) |
 | 2026-11-04 | No survivorship bias | Members with no price data at all are dropped for that date (logged, measured) | Free data gaps (D3) |
 | 2026-11-04 | `HANDOFF_REQUIREMENTS.md`: mentoring plan of 6–10 sessions of 60–90 min | 16 sessions of 60 min, student re-develops the project with the finished repo as reference | User's mentoring style (D13) |
+| 2026-11-04 | Python 3.10+ | Python 3.12+ | pandas-ta requirement (D15) |
+| 2026-11-04 | Planned `download/riskfree.py` | FRED `DTB3` download lives in `download/factors.py` | Small module; same purpose |
 
 ## Known issues
 
@@ -36,3 +44,7 @@ The final handoff documents (`docs/handoff.md`, `docs/design.md`, `docs/mentorin
 |---|---|---|---|
 | 2026-11-04 | Free membership reconstruction may contain dating errors | Universe may differ slightly from the true index | Open; spot-checks in Phase 1 |
 | 2026-11-04 | Cloud dev session cannot reach Yahoo, SEC, Alpaca, Wikipedia, FRED, French library (only PyPI and api.anthropic.com) | Downloaders can only be tested offline with recorded samples here; first real test is on the laptop | Accepted (D1) |
+| 2026-11-04 | `scripts/env.ps1` and `scripts/setup.ps1` could not be run in the cloud session (no PowerShell) | First run on the laptop may reveal a script error | Open; Phase 1 manual check 1 |
+| 2026-11-04 | Alpaca free-plan access to historical news is assumed, not yet verified | News download could fail with HTTP 403 | Open; Phase 1 manual check 4 |
+| 2026-11-04 | Wikipedia parsing tested only on synthetic pages; real old revisions may use other layouts | Some snapshots may be flagged `needs_review` | Open; check `derived/membership_snapshot_counts.csv` after the pilot |
+| 2026-11-04 | `reference/ticker_aliases.csv` lists only a few known renames | Some renamed companies may show as missing prices until added | Open; fill from `raw/prices/missing.csv` |

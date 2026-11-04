@@ -3,18 +3,18 @@
 Short, factual and always up to date. Update it at the end of every phase or work block, before pushing.
 History belongs in `decisions.md`; the plan lives in `implementation_plan.md`.
 
-_Last updated: 2026-11-04._
+_Last updated: 2026-11-04 (end of the Phase 1 build)._
 
 ## Where we are
 
 | Item | State |
 |---|---|
 | Plan | `implementation_plan.md`, approved 2026-11-04 |
-| Current phase | **Phase 1: Setup, config and downloaders.** In progress |
+| Current phase | **Phase 1: Setup, config and downloaders.** Built; 61 tests pass; **waiting for the user's manual checks on the laptop** |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Continuity files created; client requirements docx sent |
-| Next step | Build Phase 1 → run its tests → give the user the manual checks → **stop and wait** |
+| Last step | Phase 1 code, tests, README (key swap checklist) pushed |
+| Next step | User runs Phase 1 manual checks 1–6 (setup, check_env, pytest, pilot download, membership spot-check, full download). On confirmation, tick the last Phase 1 box and start Phase 2 |
 
 ## Spend so far
 
@@ -47,6 +47,14 @@ _Last updated: 2026-11-04._
 - Keep `handoff.md`, `memory.md` and `decisions.md` current.
 - Mentoring: 16 sessions × 60 min, `docs/mentoring.md` written at the end (see `handoff.md`).
 
+## Phase 1 facts a new chat needs
+
+- Python 3.12 is required (D15). Package: `quantagents/` with an editable install (`pip install -e .`).
+- Downloads: `python -m quantagents.data.download.run_all --pilot | --all`. Raw files go to `<storage>/raw/...` with `manifest.jsonl`. Membership spells go to `<storage>/derived/ndx_membership.csv`.
+- Hand-maintained corrections live in `reference/*.csv`.
+- Tests: `pytest -q`. Sockets are blocked in tests; HTTP is mocked with `responses`; storage root is redirected via the `QA_STORE_ROOT` env var.
+- The `.ps1` scripts have never been executed (no PowerShell in the cloud). Fix them from the user's error output if needed.
+
 ## Open questions waiting on the user
 
-- None blocking Phase 1.
+- Results of the Phase 1 manual checks (especially: does Alpaca's free plan return news? how many tickers have no Yahoo/SEC data?).

@@ -1,0 +1,8 @@
+# Budgets per API key label. The key itself lives only in .env; this file holds labels and limits.
+# Spend is tracked per label in the cost ledger. Calls stop automatically at budget_usd x stop_fraction.
+personal:
+  budget_usd: 3.00       # Rs 300 hard limit on the developer's personal key (~$3.40); $3.00 to allow for FX and tax
+  stop_fraction: 0.80    # stop all calls at $2.40
+student:
+  budget_usd: 150.00     # project cap
+  stop_fraction: 0.95    # stop at $142.50 so the $150 cap is never crossed

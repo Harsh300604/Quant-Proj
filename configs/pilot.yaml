@@ -1,0 +1,22 @@
+# Pilot: 5 stocks, 3 months. Used for all development and debugging.
+extends: base.yaml
+
+run_id: pilot
+
+dates:
+  warmup_start: 2014-01-01
+  start: 2015-01-01
+  end: 2015-03-31
+
+universe:
+  index: NDX
+  tickers: [AAPL, MSFT, NVDA, AMZN]
+  add_removed_member: true   # 5th stock: a 2015 member that later left the index (chosen automatically)
+
+models:
+  tier: dev
+
+budget:
+  key_label: personal
+  run_budget_usd: 0.10
+  inr_per_usd: 88.0

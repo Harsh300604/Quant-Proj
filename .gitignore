@@ -1,0 +1,22 @@
+# Secrets: never commit
+.env
+.env.*
+!.env.example
+
+# Environment and caches
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Data and outputs live on D:\CreatED-Quant\qa_store, never in the repo
+qa_store/
+runs/*
+!runs/README.md
+*.duckdb
+*.sqlite
+*.parquet
+*.log

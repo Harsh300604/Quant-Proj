@@ -3,7 +3,7 @@
 This file lets a new Claude Code chat pick up the build if the current session is lost (credit limit, disconnect).
 It is different from `docs/handoff.md`, which is the **final** handoff document for the mentor, written in Phase 9.
 
-_Last updated: 2026-11-04._
+_Last updated: 2026-11-04 (end of the Phase 1 build)._
 
 ---
 
@@ -136,5 +136,6 @@ At the end of every phase or work block, before pushing:
 | `decisions.md` | Decisions, deviations, known issues |
 | `memory.md` | Current state |
 | `docs/QuantAgents_Client_Requirements.docx` | What the client must provide, with costs |
-| `quantagents/` | Python package (created from Phase 1) |
+| `README.md` | Windows quick start and key swap checklist |
+| `quantagents/` | Python package: `config.py`, `paths.py`, `env_secrets.py`, `logs.py`, `data/download/*` |
 | `configs/`, `scripts/`, `tests/`, `reference/` | Config, helper scripts, tests, reference CSVs |

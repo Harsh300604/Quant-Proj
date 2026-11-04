@@ -1,0 +1,4 @@
+# Hand corrections to NASDAQ-100 membership dates, from Nasdaq's official announcements.
+# action: add | remove. effective_date: the date the change took effect (YYYY-MM-DD).
+# Each row moves the nearest Wikipedia-derived boundary (within 31 days) to the exact date.
+effective_date,ticker,action,source,note
