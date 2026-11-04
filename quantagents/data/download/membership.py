@@ -225,15 +225,16 @@ def wiki_title(href: str | None) -> str | None:
     return None if not t or ":" in t else t
 
 
-def learn_link_tickers(html: str, members: list[str]) -> dict[str, str]:
-    """From a revision with verified members: {company article title: ticker}.
+def link_ticker_pairs(html: str, members: list[str]) -> list[tuple[str, str]]:
+    """From a revision with verified members: (company article title, ticker) pairs.
 
     For every list item / table row that mentions exactly one member ticker, the first
-    article link in it is taken to be that company.
+    article link in it is taken to be that company. Two share classes (GOOG, GOOGL) give
+    two pairs with the same title.
     """
     from lxml import html as lxml_html
     mset = set(members)
-    out: dict[str, str] = {}
+    out: list[tuple[str, str]] = []
     for el in lxml_html.fromstring(html).iter("li", "tr"):
         hits = {clean_ticker(m) for m in _WORD_TICKER.findall(el.text_content())} & mset
         if len(hits) != 1:
@@ -241,8 +242,16 @@ def learn_link_tickers(html: str, members: list[str]) -> dict[str, str]:
         for a in el.iter("a"):
             t = wiki_title(a.get("href"))
             if t:
-                out.setdefault(t, hits.pop())
+                out.append((t, hits.pop()))
                 break
+    return out
+
+
+def learn_link_tickers(html: str, members: list[str]) -> dict[str, str]:
+    """{company article title: ticker} (first ticker seen per title)."""
+    out: dict[str, str] = {}
+    for t, tk in link_ticker_pairs(html, members):
+        out.setdefault(t, tk)
     return out
 
 
@@ -446,6 +455,7 @@ class WikipediaMembership(MembershipSource):
         cols = ["snapshot_utc", "ticker", "source_ref", "status", "method"]
         self.unmatched = pd.DataFrame(columns=["snapshot_utc", "revid", "title"])
         self.dropped = pd.DataFrame(columns=["snapshot_utc", "revid", "ticker"])
+        self.link_pairs = pd.DataFrame(columns=["title", "ticker", "revisions"])
         index_file = self.folder / "snapshots.json.gz"
         if not index_file.exists():
             return pd.DataFrame(columns=cols)
@@ -476,12 +486,26 @@ class WikipediaMembership(MembershipSource):
                 method = method if tickers else f"{method}-failed-verification"
             parsed[revid] = (tickers, method)
 
-        # 2. article title -> ticker, learned from verified revisions (later names win)
+        # 2. article title -> ticker, learned from verified revisions (later names win);
+        #    all (title, ticker) pairs are kept for company names and share-class grouping
         title_map: dict[str, str] = {}
+        pair_counts: dict[tuple[str, str], int] = {}
         for revid, (tickers, _) in sorted(parsed.items()):
             if tickers:
-                title_map.update(learn_link_tickers(html[revid], tickers))
-        title_map.update(load_title_tickers())
+                pairs = link_ticker_pairs(html[revid], tickers)
+                for pr in pairs:
+                    pair_counts[pr] = pair_counts.get(pr, 0) + 1
+                seen: dict[str, str] = {}
+                for t, tk in pairs:
+                    seen.setdefault(t, tk)
+                title_map.update(seen)
+        manual = load_title_tickers()
+        title_map.update(manual)
+        for t, tk in manual.items():
+            pair_counts[(t, tk)] = pair_counts.get((t, tk), 0) + 1
+        self.link_pairs = pd.DataFrame([{"title": t, "ticker": tk, "revisions": n}
+                                        for (t, tk), n in sorted(pair_counts.items())],
+                                       columns=["title", "ticker", "revisions"])
 
         # 3. per snapshot: article list, else the template as it was at that time
         rows, un, dr = [], [], []
@@ -592,9 +616,9 @@ def removed_members(spells: pd.DataFrame, first: pd.Timestamp, last: pd.Timestam
     return sorted(set(members_at(spells, first)) - set(members_at(spells, last)))
 
 
-def save_spells(spells: pd.DataFrame, derived_dir: Path) -> Path:
+def save_spells(spells: pd.DataFrame, derived_dir: Path, name: str = "ndx_membership.csv") -> Path:
     derived_dir.mkdir(parents=True, exist_ok=True)
-    out = derived_dir / "ndx_membership.csv"
+    out = derived_dir / name
     spells.to_csv(out, index=False, date_format="%Y-%m-%dT%H:%M:%SZ")
     return out
 

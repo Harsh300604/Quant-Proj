@@ -38,7 +38,10 @@ def test_pilot_end_to_end(store, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert code == 0, out
     assert "pilot 5th stock (left the index later): OLDTW" in out
-    assert re.search(r"members on 2015-01-02: 100", out)
+    assert re.search(r"members \(tickers\) on 2015-01-02: 100", out)
+    assert re.search(r"members \(companies\) on 2015-01-02: 100", out)
+    assert (store / "derived" / "company_map.csv").exists()
+    assert (store / "derived" / "ndx_membership_companies.csv").exists()
     assert "SKIPPED: ALPACA_API_KEY, ALPACA_SECRET_KEY missing" in out
     assert "SKIPPED: SEC_USER_AGENT missing" in out
     spells = pd.read_csv(store / "derived" / "ndx_membership.csv")

@@ -116,7 +116,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 | R3 | Success criterion | Information ratio vs. the NASDAQ-100 and Carhart 4-factor alpha, alongside Sharpe, Sortino and max drawdown. **To be confirmed with the professor before any full-run result is shown.** All metrics are computed regardless. |
 | R4 | Sector band | ±2 percentage points (`sector_band_pp: 2.0`). |
 | R5 | Rating → return table | The brief's defaults (−6 / −3 / 0 / +3 / +6 %). Converted to a monthly figure by dividing by 3 (simple compounding); documented in `design.md`. |
-| R6 | Index weights | Plain derived cap weights: shares outstanding from EDGAR (by filing date) × price, normalized across members. Nasdaq's capping rules are **not** copied. We validate by comparing our derived index with QQQ and report the tracking error. GOOG and GOOGL stay as two members, as in the real index, both in the same sector. |
+| R6 | Index weights | Plain derived cap weights: shares outstanding from EDGAR (by filing date) × price, normalized across members. Nasdaq's capping rules are **not** copied. We validate by comparing our derived index with QQQ and report the tracking error. ~~GOOG and GOOGL stay as two members~~ → **company level (D27, 6 Nov)**: share classes are one company whose weight is the sum of its classes. |
 | R7 | Sector and country | Sector comes from the SEC industry code (SIC), mapped to 11 GICS-like sectors in `reference/sic_to_sector.csv`. HQ country comes from the EDGAR business address. Neither is a GICS licence. Both are static per company. |
 | R8 | Geography | Reported and checked (weights by country vs. the index), **not** enforced as a band. |
 | R9 | Decision timing | `as_of` is the **close (4 pm ET) of the first trading day of the month**. News published before 4 pm that day counts. Trades happen at the next trading day's open. |
@@ -126,7 +126,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 
 ## Phase 1: Setup, config and downloaders (week 1)
 
-**Status:** checks 1–5 passed on the laptop (5 Nov); check 6 (full download) running. Built and tested in the cloud session on 4 Nov 2026 (79 automated tests pass after the 5 Nov membership fixes and funding-stage config). **Waiting for the check 6 results.**
+**Status:** checks 1–5 passed on the laptop (5 Nov); check 6 (full download) running. Built and tested in the cloud session on 4 Nov 2026 (95 automated tests pass after the 6 Nov company-level and SEC name-lookup changes). **Waiting for the check 6 results.**
 
 **Goal:** the repo installs on D:, config loads, secrets are handled safely, and the downloads you run on your laptop have started.
 
@@ -158,18 +158,23 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
   - [x] yfinance prices for every ticker that was ever a member, plus QQQ and ^NDX; gaps listed in `raw\prices\missing.csv`; manual CSV fallback
   - [x] Alpaca news, 2015–2023 (headline and summary, not full text)
   - [x] SEC EDGAR company facts and submissions (acceptance times, SIC code, address); missing CIKs listed
+  - [x] SEC lookup by company name for delisted companies (D28) → `raw/edgar/cik_matches.csv`
+  - [x] Company-level grouping of share classes and renames (D27) → `derived/company_map.csv`, `derived/ndx_membership_companies.csv`
+  - [ ] Delisted prices from WRDS/CRSP or a paid vendor (D26; guide: `docs/wrds_export_guide.md`)
   - [x] Kenneth French factors (FF3 and momentum, daily and monthly) and FRED `DTB3`
 - [x] `check_env.py`
 - [x] Decisions log and continuity files
 - [ ] **Your manual checks below**
 
-**Automated tests (79 passing):**
+**Automated tests (95 passing):**
 - `test_config.py`: base and pilot load; bad values are rejected; sampling parameters rejected; key budgets ($2.40 stop); funding stages (80% stops, stage/key mismatch, $150 cap)
 - `test_paths.py`: C: paths (including `/mnt/c`) raise an error; D: paths resolve; library caches and temp redirected
 - `test_secrets.py`: a fake key never appears in log output, error messages or `repr`; only `.env` is read
 - `test_membership_parse.py`: table and list parsing; spells from snapshots; manual corrections; change report
 - `test_downloaders_offline.py`: every downloader against mocked responses (no network): files, manifest, resume, retries, missing lists
 - `test_run_all_offline.py`: the full `--pilot` run end to end with all services mocked
+- `test_companies.py`: share classes and renames grouped, tracking stocks not merged, overrides win
+- `test_downloaders_offline.py` (extended): company-name normalisation; delisted company found by name (old Broadcom Corp vs today's Broadcom)
 
 **Manual checks (on your laptop):**
 
@@ -198,7 +203,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
    ```powershell
    pytest -q
    ```
-   **Pass:** the last line says `79 passed` with no `failed`.
+   **Pass:** the last line says `95 passed` with no `failed`.
 4. Pilot downloads. About 50 MB goes to `D:\CreatED-Quant\qa_store\raw\`, taking roughly 5–10 minutes, mostly Wikipedia history at 1 request per second.
    ```powershell
    python -m quantagents.data.download.run_all --pilot
@@ -223,6 +228,19 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
    - the number of tickers in `D:\CreatED-Quant\qa_store\raw\prices\missing.csv` (companies with no Yahoo data);
    - the number in `D:\CreatED-Quant\qa_store\raw\edgar\missing.csv`.
 
+7. **Company level and SEC name lookup** (6 Nov):
+   ```powershell
+   git pull
+   python -m quantagents.data.download.run_all --all --only membership,prices,edgar
+   ```
+   Downloads SEC's company-name list (about 20–40 MB) plus filings of the companies found, and retries Yahoo for the renamed tickers.
+   **Pass:**
+   - the output shows `members (companies) on 2015-01-02` and `on 2023-12-01` (expected about 95–100 each) and a `companies: N (from 192 tickers; M merged ...)` line;
+   - `D:\CreatED-Quant\qa_store\derived\company_map.csv` groups only real share classes and renames (e.g. GOOG+GOOGL, FOX+FOXA, FB+META);
+   - `D:\CreatED-Quant\qa_store\raw\edgar\cik_matches.csv` shows most delisted companies with `confidence` = `high`;
+   - the SEC-missing count drops well below 41.
+8. **Delisted prices** (D26): the student checks WRDS access; if available, follow `docs\wrds_export_guide.md`. Otherwise a paid one-month vendor download. Phase 1 closes when the price gap is resolved or explicitly accepted.
+
 **API spend:** $0. **Depends on:** nothing.
 
 ---
@@ -235,7 +253,8 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 - `quantagents/data/etl.py`: raw files → DuckDB `D:\CreatED-Quant\qa_store\quantagents.duckdb`, with a manifest table (source, download date, rows, checksums)
 - `quantagents/data/calendar.py`: NYSE trading days and the 4 pm ET close in UTC, daylight saving handled (`pandas_market_calendars`)
 - `quantagents/data/indicators.py`: pandas-ta indicators (RSI, MACD, SMA/EMA 20/50/200, ATR, Bollinger, momentum 1/3/6/12-1)
-- `quantagents/data/weights.py`: derived index weights, sector and country weights
+- `quantagents/data/weights.py`: derived index weights at **company level** (D27: a company's weight = sum of its share classes), sector and country weights
+- `quantagents/data/manual_import.py`: importer for the WRDS/CRSP (or vendor) file of delisted companies, written to match the actual file
 - `quantagents/data/gateway.py`: `get_universe`, `get_index_weights`, `get_prices`, `get_indicators`, `get_fundamentals`, `get_news`; each logs its `as_of` date for the red-flag check
 - `reference/sic_to_sector.csv`
 - `scripts/data_report.py`: coverage report (missing prices, non-US filers, news counts, % of index weight missing per date)

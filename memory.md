@@ -3,18 +3,18 @@
 Short, factual and always up to date. Update it at the end of every phase or work block, before pushing.
 History belongs in `decisions.md`; the plan lives in `implementation_plan.md`.
 
-_Last updated: 2026-11-05 (Phase 1: full download running; funding stages added)._
+_Last updated: 2026-11-06 (company level + SEC name lookup built; delisted prices pending)._
 
 ## Where we are
 
 | Item | State |
 |---|---|
 | Plan | `implementation_plan.md`, approved 2026-11-04 |
-| Current phase | **Phase 1.** All 6 manual checks run; full download finished OK on 5-6 Nov (prices 151 files, edgar 444, news 1,728 ticker-year files / 348k articles). Waiting for missing-ticker counts + share-class answer to close Phase 1 |
+| Current phase | **Phase 1** (almost closed). Full download done. Open: delisted prices for 43 of 192 tickers (D26: WRDS/CRSP first, else paid); user to run manual check 7 |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Full download complete, every source OK |
-| Next step | User runs `python scripts\coverage_quick.py` and decides the delisted-price source (and share classes). Then: SEC historical-CIK lookup fix, tick Phase 1, start Phase 2 |
+| Last step | Built company-level universe (D27) and SEC lookup by company name (D28); WRDS export guide; aliases WLTW→WTW, QRTEA/QVCA→QVCGA. 95 tests pass |
+| Next step | User: `git pull`, run `run_all --all --only membership,prices,edgar` (Phase 1 manual check 7), send the output + counts; client/student checks WRDS access. Then close Phase 1 → Phase 2 |
 
 ## Spend so far and funding stage
 
@@ -54,6 +54,7 @@ Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan
 
 ## Phase 1 facts a new chat needs
 
+- Company level (D27): `derived/company_map.csv` (ticker → company_id), company spells `derived/ndx_membership_companies.csv`; ticker-level files kept for downloads. SEC name lookup (D28): `raw/edgar/cik_matches.csv`.
 - Python 3.12 is required (D15). Package: `quantagents/` with an editable install (`pip install -e .`).
 - Downloads: `python -m quantagents.data.download.run_all --pilot | --all`. Raw files go to `<storage>/raw/...` with `manifest.jsonl`. Membership spells go to `<storage>/derived/ndx_membership.csv`.
 - Hand-maintained corrections live in `reference/*.csv`.
@@ -64,7 +65,7 @@ Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan
 
 - **Delisted prices (blocks Phase 1 close):** 43 of 192 tickers have no Yahoo prices (30% of members in 2015 → 6% in 2023). Decided (D26): WRDS/CRSP via UT Dallas first, else a paid one-month vendor download. Waiting for the client/student to check WRDS access.
 
-- **Share classes:** 2014-18 membership (template) is company-level; 2019-23 (table) is share-class level. Recommended: company-level universe everywhere, secondary classes merged into the primary (reverses D6). Waiting for the answer.
+- **Share classes:** answered 6 Nov → company level (D27), built.
 
 - Full-download results: summary table, Yahoo-missing count, SEC-missing count.
 - Optional: confirm the 2016-03-01 CSX added / KLAC removed change.

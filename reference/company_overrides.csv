@@ -1,0 +1,4 @@
+# Hand corrections to the company grouping (derived/company_map.csv).
+# Put a ticker under a company id, e.g. to merge two share classes the automatic rule missed,
+# or give a ticker its own id (company_id = the ticker itself) to undo a wrong merge.
+ticker,company_id,note

@@ -18,6 +18,7 @@ from pathlib import Path
 import pandas as pd
 
 from quantagents.config import CONFIG_DIR, Config, load_config
+from quantagents.data.companies import build_company_map, ticker_names, to_company_snapshots
 from quantagents.data.download.base import Manifest
 from quantagents.data.download.edgar import SecEdgar
 from quantagents.data.download.factors import FredRiskFree, FrenchFactors
@@ -26,7 +27,7 @@ from quantagents.data.download.membership import (
     save_spells, snapshot_counts,
 )
 from quantagents.data.download.news import AlpacaNews
-from quantagents.data.download.prices import BENCHMARKS, YFinancePrices
+from quantagents.data.download.prices import BENCHMARKS, YFinancePrices, load_aliases
 from quantagents.env_secrets import load_secrets
 from quantagents.logs import setup_logging
 from quantagents.paths import Paths, configure_third_party_caches
@@ -103,6 +104,8 @@ def main(argv: list[str] | None = None) -> int:
     membership = WikipediaMembership.create(paths.raw, manifest, cfg.downloads.wikipedia_requests_per_second,
                                             cfg.downloads.membership_snapshot_days)
     spells = None
+    names: dict[str, list[str]] = {}
+    periods: dict[str, tuple[date, date]] = {}
     try:
         if "membership" in wanted:
             # full history so pilots can pick a removed member and the gateway has full coverage
@@ -112,6 +115,26 @@ def main(argv: list[str] | None = None) -> int:
             spells, warnings = build_spells(snaps, load_manual_changes())
             out = save_spells(spells, paths.derived)
             membership.unmatched.to_csv(paths.derived / "membership_unmatched_names.csv", index=False)
+            # company level (decision D27): share classes and renames -> one company
+            ok = snaps[(snaps["status"] == "ok") & snaps["ticker"].notna()]
+            cmap = build_company_map(sorted(spells["ticker"].unique()), membership.link_pairs,
+                                     load_aliases(), ok["ticker"].value_counts().to_dict())
+            cmap.to_csv(paths.derived / "company_map.csv", index=False)
+            cspells, _ = build_spells(to_company_snapshots(snaps, cmap), load_manual_changes())
+            save_spells(cspells, paths.derived, "ndx_membership_companies.csv")
+            merged = cmap[cmap["ticker"] != cmap["company_id"]]
+            for d in (date(2015, 1, 2), date(2023, 12, 1)):
+                print(f"  members (companies) on {d}: {len(members_at(cspells, pd.Timestamp(d, tz='UTC')))}")
+            print(f"  companies: {cmap['company_id'].nunique()} (from {len(cmap)} tickers; "
+                  f"{len(merged)} merged as share classes or renames -> derived\\company_map.csv)")
+            # company names and membership periods, to find delisted companies in SEC EDGAR
+            tn = ticker_names(membership.link_pairs)
+            names = {r.ticker: r.all_names.split(" | ") for r in tn.itertuples()}
+            tn.to_csv(paths.derived / "ticker_names.csv", index=False)
+            for tk, g in spells.groupby("ticker"):
+                end = g["end_utc"].max()
+                periods[tk] = (g["start_utc"].min().date(),
+                               date(2023, 12, 31) if g["end_utc"].isna().any() or pd.isna(end) else end.date())
             counts = snapshot_counts(snaps)
             bad = counts[counts["status"] != "ok"]
             counts.to_csv(paths.derived / "membership_snapshot_counts.csv", index=False)
@@ -119,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
                 log.warning(w)
             for d in (date(2015, 1, 2), date(2023, 12, 1)):
                 n = len(members_at(spells, pd.Timestamp(d, tz="UTC")))
-                print(f"  members on {d}: {n}")
+                print(f"  members (tickers) on {d}: {n}")
             print(f"  membership spells -> {out}  (snapshots needing review: {len(bad)})")
             status["membership"] = "OK" if bad.empty else f"OK, {len(bad)} snapshot(s) need review"
         elif "membership" in wanted:
@@ -169,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
 
     run("prices", do_prices)
     run("edgar", lambda: SecEdgar.create(paths.raw, manifest, secrets.get("SEC_USER_AGENT"),
-                                         cfg.downloads.sec_requests_per_second).download(tickers),
+                                         cfg.downloads.sec_requests_per_second).download(tickers, names, periods),
         needs=("SEC_USER_AGENT",))
     run("news", lambda: AlpacaNews.create(paths.raw, manifest, secrets.get("ALPACA_API_KEY"),
                                           secrets.get("ALPACA_SECRET_KEY"),

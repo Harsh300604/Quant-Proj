@@ -210,3 +210,44 @@ def test_manifest_detects_changed_file(raw):
     assert Manifest(raw).is_complete(f)       # reloaded from disk
     f.write_text("b")
     assert not Manifest(raw).is_complete(f)   # checksum mismatch -> re-download
+
+
+# ---------------------------------------------------------------- SEC: delisted companies by name
+def test_normalize_company_names():
+    from quantagents.data.download.edgar import normalize_company
+    assert normalize_company("Activision Blizzard, Inc.") == normalize_company("ACTIVISION BLIZZARD INC") == "ACTIVISION BLIZZARD"
+    assert normalize_company("ALTERA CORP /DE/") == "ALTERA"
+    assert normalize_company("Yahoo!") == "YAHOO"
+    assert normalize_company("Shire (pharmaceutical company)") == "SHIRE"
+    assert normalize_company("The Kraft Heinz Company") == "KRAFT HEINZ"
+
+
+@responses.activate
+def test_edgar_finds_delisted_company_by_name(raw):
+    """Old 'Broadcom Corp' vs new Broadcom: pick the filer active while BRCM was in the index;
+    skip CIKs already used by current tickers."""
+    from quantagents.data.download.edgar import CIK_LOOKUP_URL
+    responses.add(responses.GET, TICKERS_URL, json={"0": {"cik_str": 1730168, "ticker": "AVGO", "title": "Broadcom Inc."}})
+    responses.add(responses.GET, CIK_LOOKUP_URL, body=(
+        "BROADCOM CORP:0001054374:\nBROADCOM INC.:0001730168:\nBROADCOM LTD:0001649338:\nXILINX INC:0000743988:\n"))
+    def subs(cik, years):
+        return {"cik": cik, "name": f"N{cik}", "filings": {"recent": {
+            "form": ["10-K"] * len(years), "filingDate": [f"{y}-02-01" for y in years],
+            "accessionNumber": [f"a{y}" for y in years], "acceptanceDateTime": [f"{y}-02-01T00:00:00.000Z" for y in years]},
+            "files": []}}
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0001054374.json"), json=subs(1054374, [2014, 2015, 2016]))
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0001649338.json"), json=subs(1649338, [2017, 2018]))
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0001730168.json"), json=subs(1730168, [2019]))
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0000743988.json"), json=subs(743988, [2014, 2020]))
+    for c in ("0001054374", "0001730168", "0000743988"):
+        responses.add(responses.GET, FACTS_URL.format(cik=c), json=S.sec_facts(int(c)))
+    src = SecEdgar.create(raw, Manifest(raw), "QuantAgents research test@example.com", 1000)
+    from datetime import date as d
+    out = src.download(["AVGO", "BRCM", "XLNX", "NONAME"],
+                       names={"BRCM": ["Broadcom Corporation"], "XLNX": ["Xilinx"]},
+                       periods={"BRCM": (d(2014, 1, 1), d(2016, 2, 1)), "XLNX": (d(2014, 1, 1), d(2022, 2, 1))})
+    m = pd.read_csv(raw / "edgar" / "cik_matches.csv", dtype=str).set_index("ticker")
+    assert m.loc["BRCM", "cik"] == "0001054374" and m.loc["BRCM", "confidence"] == "high"
+    assert m.loc["XLNX", "cik"] == "0000743988"
+    assert m.loc["NONAME", "confidence"].startswith("none")
+    assert len(out["BRCM"]) == 2 and out["NONAME"] == []
