@@ -13,8 +13,8 @@ _Last updated: 2026-11-06 (company level + SEC name lookup built; delisted price
 | Current phase | **Phase 1** (almost closed). Full download done. Open: delisted prices for 43 of 192 tickers (D26: WRDS/CRSP first, else paid); user to run manual check 7 |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Check 7 results: SEC 37/41 found, merges correct, Yahoo still missing 42. Fixed the 4 SEC misses + VIAB ambiguity (company CIK sharing, formerNames period check, ordinals, DISCA→WBD); 99 tests |
-| Next step | User reruns check 7 (`run_all --all --only membership,edgar`) and pastes SEC results + any 'not merged' pairs. Delisted prices: waiting on WRDS (D26). Then close Phase 1 → Phase 2 |
+| Last step | SEC complete for all 192 tickers; fixed reused-ticker trap (VIA, SNDK matched newer companies in SEC's current list); 100 tests |
+| Next step | User reruns `run_all --all --only edgar` and checks VIA/VIAB/SNDK rows in ticker_ciks.csv; then (with user's OK) close Phase 1 with delisted prices (D26, WRDS) as the one open item and start Phase 2 |
 
 ## Spend so far and funding stage
 

@@ -234,6 +234,22 @@ class SecEdgar(FundamentalsSource):
             if c:
                 ciks[tk] = c
 
+        # A ticker in SEC's CURRENT list may now belong to a different, newer company (ticker
+        # reuse: VIA = Via Transportation since 2025, SNDK = the 2025 Sandisk spin-off). Accept a
+        # current-list match only if that filer filed reports while the ticker was in the index.
+        self.rejected_current: dict[str, str] = {}
+        if periods:
+            for tk in list(ciks):
+                if tk.upper() in overrides or tk not in periods:
+                    continue
+                c = ciks[tk]
+                sub = self._save(SUBMISSIONS_URL.format(name=f"CIK{c}.json"),
+                                 self.folder / "submissions" / f"CIK{c}.json.gz", "submissions", c)
+                start, end = periods[tk]
+                if sub is not None and periodic_filings_between(sub, date(start.year - 1, 1, 1), end) == 0:
+                    self.rejected_current[tk] = f"{c} ({sub.get('name', '')})"
+                    del ciks[tk]
+
         def share_within_companies():
             by_company: dict[str, str] = {}
             for t, c in ciks.items():
@@ -281,6 +297,8 @@ class SecEdgar(FundamentalsSource):
                 source[t] = "override"
             elif cmap.get(t.upper()) == ciks[t]:
                 source[t] = "sec_current_list"
+            elif t in self.rejected_current:
+                source[t] = f"name_lookup (current-list match rejected: {self.rejected_current[t]})"
             else:
                 source[t] = "name_lookup_or_company"
         tf = self.folder / "ticker_ciks.csv"

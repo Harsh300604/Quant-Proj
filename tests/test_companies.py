@@ -55,4 +55,5 @@ def test_possible_unmerged_classes():
     from quantagents.data.companies import possible_unmerged_classes
     cm = pd.DataFrame({"ticker": ["CMCSA", "CMCSK", "GOOG", "GOOGL", "AAPL"],
                        "company_id": ["CMCSA", "CMCSK", "GOOGL", "GOOGL", "AAPL"], "reason": ""})
-    assert possible_unmerged_classes(cm) == ["CMCSA/CMCSK"]
+    assert possible_unmerged_classes(cm, confirmed_different=set()) == ["CMCSA/CMCSK"]
+    assert possible_unmerged_classes(cm, confirmed_different={frozenset(("CMCSA", "CMCSK"))}) == []

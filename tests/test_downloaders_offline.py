@@ -300,3 +300,26 @@ def test_cik_override_same_as_other_ticker(tmp_path):
     f = tmp_path / "o.csv"
     f.write_text("ticker,cik,note\nDISCA,=WBD,same filer\nABC,123,x\n", encoding="utf-8")
     assert load_cik_overrides(f) == {"DISCA": "=WBD", "ABC": "0000000123"}
+
+
+
+@responses.activate
+def test_edgar_rejects_reused_current_ticker(raw):
+    """SNDK in SEC's current list is the 2025 Sandisk spin-off; the index member (2014-2016) was
+    the old SanDisk Corp - the current-list match must be rejected and the name lookup used."""
+    from datetime import date as d
+    from quantagents.data.download.edgar import CIK_LOOKUP_URL
+    responses.add(responses.GET, TICKERS_URL, json={"0": {"cik_str": 2023554, "ticker": "SNDK", "title": "Sandisk Corp"}})
+    responses.add(responses.GET, CIK_LOOKUP_URL, body="SANDISK CORP:0001000180:\nSANDISK CORP:0002023554:\n")
+    def subs(cik, years, name):
+        return {"cik": cik, "name": name, "filings": {"recent": {"form": ["10-K"] * len(years),
+                "filingDate": [f"{y}-02-01" for y in years], "accessionNumber": [str(y) for y in years],
+                "acceptanceDateTime": [""] * len(years)}, "files": []}}
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0002023554.json"), json=subs(2023554, [2025, 2026], "Sandisk Corp"))
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0001000180.json"), json=subs(1000180, [2014, 2015, 2016], "SANDISK CORP"))
+    responses.add(responses.GET, FACTS_URL.format(cik="0001000180"), json=S.sec_facts(1000180))
+    src = SecEdgar.create(raw, Manifest(raw), "QuantAgents research test@example.com", 1000)
+    src.download(["SNDK"], names={"SNDK": ["SanDisk"]}, periods={"SNDK": (d(2014, 1, 1), d(2016, 5, 15))})
+    tc = pd.read_csv(raw / "edgar" / "ticker_ciks.csv", dtype=str).set_index("ticker")
+    assert tc.loc["SNDK", "cik"] == "0001000180"
+    assert "rejected" in tc.loc["SNDK", "source"]

@@ -1,0 +1,8 @@
+# Ticker pairs that look like share classes but are different companies (confirmed by hand).
+# Listed here so the "look like share classes but NOT merged" check only shows new cases.
+ticker_a,ticker_b,note
+CTRP,CTRX,Ctrip vs Catamaran
+EXPD,EXPE,Expeditors vs Expedia
+INTC,INTU,Intel vs Intuit
+SPLK,SPLS,Splunk vs Staples
+VRSK,VRSN,Verisk vs VeriSign

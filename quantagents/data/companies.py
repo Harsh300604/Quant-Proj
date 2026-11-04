@@ -114,14 +114,26 @@ def ticker_names(link_pairs: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["ticker", "name", "all_names"])
 
 
-def possible_unmerged_classes(company_map: pd.DataFrame) -> list[str]:
+NOT_SAME = REPO_ROOT / "reference" / "not_same_company.csv"
+
+
+def load_not_same(path: Path = NOT_SAME) -> set[frozenset]:
+    if not path.exists():
+        return set()
+    df = pd.read_csv(path, comment="#", dtype=str).fillna("")
+    return {frozenset((r.ticker_a.strip().upper(), r.ticker_b.strip().upper())) for r in df.itertuples()}
+
+
+def possible_unmerged_classes(company_map: pd.DataFrame, confirmed_different: set[frozenset] | None = None) -> list[str]:
     """Ticker pairs that look like share classes (e.g. CMCSA/CMCSK) but sit in different
-    companies - for a human to confirm or override."""
+    companies - for a human to confirm (reference/not_same_company.csv) or merge
+    (reference/company_overrides.csv)."""
+    confirmed_different = load_not_same() if confirmed_different is None else confirmed_different
     cid = dict(zip(company_map["ticker"], company_map["company_id"]))
     tks = sorted(cid)
     out = []
     for i, a in enumerate(tks):
         for b in tks[i + 1:]:
-            if looks_like_share_classes(a, b) and cid[a] != cid[b]:
+            if looks_like_share_classes(a, b) and cid[a] != cid[b] and frozenset((a, b)) not in confirmed_different:
                 out.append(f"{a}/{b}")
     return out
