@@ -13,8 +13,8 @@ _Last updated: 2026-11-06 (company level + SEC name lookup built; delisted price
 | Current phase | **Phase 1** (almost closed). Full download done. Open: delisted prices for 43 of 192 tickers (D26: WRDS/CRSP first, else paid); user to run manual check 7 |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Built company-level universe (D27) and SEC lookup by company name (D28); WRDS export guide; aliases WLTW→WTW, QRTEA/QVCA→QVCGA. 95 tests pass |
-| Next step | User: `git pull`, run `run_all --all --only membership,prices,edgar` (Phase 1 manual check 7), send the output + counts; client/student checks WRDS access. Then close Phase 1 → Phase 2 |
+| Last step | Check 7 results: SEC 37/41 found, merges correct, Yahoo still missing 42. Fixed the 4 SEC misses + VIAB ambiguity (company CIK sharing, formerNames period check, ordinals, DISCA→WBD); 99 tests |
+| Next step | User reruns check 7 (`run_all --all --only membership,edgar`) and pastes SEC results + any 'not merged' pairs. Delisted prices: waiting on WRDS (D26). Then close Phase 1 → Phase 2 |
 
 ## Spend so far and funding stage
 

@@ -50,12 +50,30 @@ def load_cik_overrides(path: Path = REPO_ROOT / "reference" / "cik_overrides.csv
     if not path.exists():
         return {}
     df = pd.read_csv(path, comment="#", dtype=str).fillna("")
-    return {r.ticker.strip().upper(): cik10(r.cik) for r in df.itertuples() if r.cik.strip()}
+    return {r.ticker.strip().upper(): (r.cik.strip().upper() if r.cik.strip().startswith("=") else cik10(r.cik))
+            for r in df.itertuples() if r.cik.strip()}
+
+
+_ONES = ["", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN",
+         "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN"]
+_TENS = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY"]
+_ORD = {"ONE": "FIRST", "TWO": "SECOND", "THREE": "THIRD", "FIVE": "FIFTH", "EIGHT": "EIGHTH",
+        "NINE": "NINTH", "TWELVE": "TWELFTH"}
+
+
+def _ordinal_words(n: int) -> str:
+    """21 -> 'TWENTY FIRST' (1-99)."""
+    words = [_ONES[n]] if n < 20 else [_TENS[n // 10]] + ([_ONES[n % 10]] if n % 10 else [])
+    last = words[-1]
+    words[-1] = _ORD.get(last, last[:-1] + "IETH" if last.endswith("Y") else last + "TH")
+    return " ".join(words)
 
 
 def normalize_company(name: str) -> str:
-    """'Activision Blizzard, Inc.' / 'ACTIVISION BLIZZARD INC' -> 'ACTIVISION BLIZZARD'."""
+    """'Activision Blizzard, Inc.' / 'ACTIVISION BLIZZARD INC' -> 'ACTIVISION BLIZZARD';
+    '21st Century Fox' and 'Twenty-First Century Fox' -> 'TWENTY FIRST CENTURY FOX'."""
     n = re.sub(r"\(.*?\)", " ", str(name)).upper().replace("&", " AND ")
+    n = re.sub(r"\b([1-9][0-9]?)(ST|ND|RD|TH)\b", lambda m: " " + _ordinal_words(int(m.group(1))) + " ", n)
     n = re.sub(r"/[A-Z]{2}/", " ", n)                  # state tags like /DE/
     n = re.sub(r"[^A-Z0-9 ]+", " ", n)
     words = [w for w in n.split() if w]
@@ -76,6 +94,27 @@ def parse_cik_lookup(text: str) -> dict[str, set[str]]:
             if key:
                 out.setdefault(key, set()).add(m.group(2))
     return out
+
+
+def name_used_during(submissions: dict, names: list[str], start: date, end: date) -> bool:
+    """Did the filer carry one of ``names`` at some point in [start, end]?
+
+    Uses the current name and SEC's dated ``formerNames``. Needed because a name can move
+    between filers: 'VIACOM INC' was today's Paramount (CBS) until 2005 and the separate new
+    Viacom from 2006.
+    """
+    wanted = {normalize_company(n) for n in names}
+    former = submissions.get("formerNames") or []
+    s0, e0 = start.isoformat(), end.isoformat()
+    for f in former:
+        if normalize_company(f.get("name", "")) in wanted:
+            f_from, f_to = (f.get("from") or "0000")[:10], (f.get("to") or "9999")[:10]
+            if f_from <= e0 and f_to >= s0:
+                return True
+    if normalize_company(submissions.get("name", "")) in wanted:
+        current_from = max(((f.get("to") or "0000")[:10] for f in former), default="0000")
+        return current_from <= e0
+    return False
 
 
 def periodic_filings_between(submissions: dict, start: date, end: date) -> int:
@@ -134,8 +173,9 @@ class SecEdgar(FundamentalsSource):
         """Find the CIK of a company no longer in SEC's current ticker list.
 
         Candidates: EDGAR filers whose (normalized) name equals one of the company's
-        Wikipedia names. Chosen: the candidate with the most 10-K/10-Q/20-F filings while
-        the company was in the index (CIKs already used by other tickers are skipped).
+        Wikipedia names. Kept: candidates that carried that name during the membership period
+        (``name_used_during``). Chosen: the one with the most 10-K/10-Q/20-F filings while the
+        company was in the index. CIKs already used by *other companies* are skipped.
         """
         cands = sorted({c for n in names for c in index.get(normalize_company(n), set())} - taken)
         start, end = period
@@ -143,7 +183,8 @@ class SecEdgar(FundamentalsSource):
         for c in cands[:12]:
             sub = self._save(SUBMISSIONS_URL.format(name=f"CIK{c}.json"),
                              self.folder / "submissions" / f"CIK{c}.json.gz", "submissions", c)
-            score = periodic_filings_between(sub, date(start.year - 1, 1, 1), end) if sub else 0
+            window = (date(start.year - 1, 1, 1), end)
+            score = periodic_filings_between(sub, *window) if sub and name_used_during(sub, names, *window) else 0
             scored.append((score, c, (sub or {}).get("name", "")))
         scored.sort(key=lambda x: (-x[0], x[1]))
         good = [x for x in scored if x[0] > 0]
@@ -171,40 +212,81 @@ class SecEdgar(FundamentalsSource):
         return data
 
     def download(self, tickers: Iterable[str], names: dict[str, list[str]] | None = None,
-                 periods: dict[str, tuple[date, date]] | None = None) -> dict[str, list[Path]]:
+                 periods: dict[str, tuple[date, date]] | None = None,
+                 company_of: dict[str, str] | None = None) -> dict[str, list[Path]]:
         """``names``/``periods`` (company names and index-membership period per ticker) let
-        companies that are no longer listed be found by name; see ``resolve_by_name``."""
+        companies that are no longer listed be found by name (``resolve_by_name``).
+        ``company_of`` (ticker -> company id, D27): tickers of one company share one CIK
+        (share classes, renames such as Liberty Interactive -> Qurate Retail)."""
         cmap = self.ticker_map()
         out: dict[str, list[Path]] = {}
         missing = []
         aliases = load_aliases()
         overrides = load_cik_overrides()
         tickers = list(tickers)
+        company_of = company_of or {}
+        comp = lambda t: company_of.get(t, t)  # noqa: E731
         ciks: dict[str, str] = {}
         for tk in tickers:
-            c = overrides.get(tk.upper()) or cmap.get(tk.upper()) or \
+            o = overrides.get(tk.upper(), "")
+            c = (o if o and not o.startswith("=") else "") or cmap.get(tk.upper()) or \
                 cmap.get(aliases.get(tk.upper(), "").replace(".", "-"))
             if c:
                 ciks[tk] = c
-        unresolved = [t for t in tickers if t not in ciks]
-        if unresolved and names:
+
+        def share_within_companies():
+            by_company: dict[str, str] = {}
+            for t, c in ciks.items():
+                by_company.setdefault(comp(t), c)
+            for t in tickers:
+                if t not in ciks and comp(t) in by_company:
+                    ciks[t] = by_company[comp(t)]
+
+        share_within_companies()
+        groups: dict[str, list[str]] = {}
+        for t in tickers:
+            if t not in ciks:
+                groups.setdefault(comp(t), []).append(t)
+        if groups and names:
             index = self.name_index()
-            taken = set(ciks.values())
             matches = []
-            for tk in tqdm(unresolved, desc="edgar name lookup", unit="ticker"):
-                if not names.get(tk):
-                    matches.append({"ticker": tk, "names": "", "cik": "", "edgar_name": "", "candidates": 0,
+            for cid, members in tqdm(sorted(groups.items()), desc="edgar name lookup", unit="company"):
+                gnames = list(dict.fromkeys(n for t in members for n in (names.get(t) or [])))
+                label = "+".join(members)
+                if not gnames:
+                    matches.append({"ticker": label, "names": "", "cik": "", "edgar_name": "", "candidates": 0,
                                     "filings_in_period": 0, "confidence": "none - no company name known"})
                     continue
-                period = (periods or {}).get(tk, (date(2014, 1, 1), date(2023, 12, 31)))
-                m = self.resolve_by_name(tk, names[tk], period, index, taken)
+                ps = [(periods or {}).get(t, (date(2014, 1, 1), date(2023, 12, 31))) for t in members]
+                period = (min(p[0] for p in ps), max(p[1] for p in ps))
+                taken = {c for t, c in ciks.items() if comp(t) != cid}
+                m = self.resolve_by_name(label, gnames, period, index, taken)
                 matches.append(m)
                 if m["cik"]:
-                    ciks[tk] = m["cik"]
-                    taken.add(m["cik"])
+                    for t in members:
+                        ciks[t] = m["cik"]
             mf = self.folder / "cik_matches.csv"
             mf.parent.mkdir(parents=True, exist_ok=True)
             pd.DataFrame(matches).to_csv(mf, index=False)
+        for t, o in overrides.items():          # "=WBD" means: same CIK as ticker WBD
+            if o.startswith("=") and t in tickers and o[1:] in ciks:
+                ciks[t] = ciks[o[1:]]
+        share_within_companies()
+        # one table for Phase 2: which CIK each ticker uses, and how it was found
+        source = {}
+        for t in tickers:
+            if t not in ciks:
+                source[t] = "missing"
+            elif t in overrides:
+                source[t] = "override"
+            elif cmap.get(t.upper()) == ciks[t]:
+                source[t] = "sec_current_list"
+            else:
+                source[t] = "name_lookup_or_company"
+        tf = self.folder / "ticker_ciks.csv"
+        tf.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame([{"ticker": t, "cik": ciks.get(t, ""), "company_id": comp(t), "source": source[t]}
+                      for t in tickers]).to_csv(tf, index=False)
         for tk in tqdm(tickers, desc="edgar", unit="ticker"):
             cik = ciks.get(tk)
             if not cik:

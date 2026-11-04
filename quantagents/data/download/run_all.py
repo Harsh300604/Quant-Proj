@@ -18,7 +18,9 @@ from pathlib import Path
 import pandas as pd
 
 from quantagents.config import CONFIG_DIR, Config, load_config
-from quantagents.data.companies import build_company_map, ticker_names, to_company_snapshots
+from quantagents.data.companies import (
+    build_company_map, possible_unmerged_classes, ticker_names, to_company_snapshots,
+)
 from quantagents.data.download.base import Manifest
 from quantagents.data.download.edgar import SecEdgar
 from quantagents.data.download.factors import FredRiskFree, FrenchFactors
@@ -106,6 +108,7 @@ def main(argv: list[str] | None = None) -> int:
     spells = None
     names: dict[str, list[str]] = {}
     periods: dict[str, tuple[date, date]] = {}
+    company_of: dict[str, str] = {}
     try:
         if "membership" in wanted:
             # full history so pilots can pick a removed member and the gateway has full coverage
@@ -122,11 +125,16 @@ def main(argv: list[str] | None = None) -> int:
             cmap.to_csv(paths.derived / "company_map.csv", index=False)
             cspells, _ = build_spells(to_company_snapshots(snaps, cmap), load_manual_changes())
             save_spells(cspells, paths.derived, "ndx_membership_companies.csv")
+            company_of = dict(zip(cmap["ticker"], cmap["company_id"]))
             merged = cmap[cmap["ticker"] != cmap["company_id"]]
             for d in (date(2015, 1, 2), date(2023, 12, 1)):
                 print(f"  members (companies) on {d}: {len(members_at(cspells, pd.Timestamp(d, tz='UTC')))}")
             print(f"  companies: {cmap['company_id'].nunique()} (from {len(cmap)} tickers; "
                   f"{len(merged)} merged as share classes or renames -> derived\\company_map.csv)")
+            maybe = possible_unmerged_classes(cmap)
+            if maybe:
+                print(f"  check: look like share classes but NOT merged: {', '.join(maybe)} "
+                      f"(merge via reference\\company_overrides.csv if they are the same company)")
             # company names and membership periods, to find delisted companies in SEC EDGAR
             tn = ticker_names(membership.link_pairs)
             names = {r.ticker: r.all_names.split(" | ") for r in tn.itertuples()}
@@ -192,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
 
     run("prices", do_prices)
     run("edgar", lambda: SecEdgar.create(paths.raw, manifest, secrets.get("SEC_USER_AGENT"),
-                                         cfg.downloads.sec_requests_per_second).download(tickers, names, periods),
+                                         cfg.downloads.sec_requests_per_second).download(tickers, names, periods, company_of),
         needs=("SEC_USER_AGENT",))
     run("news", lambda: AlpacaNews.create(paths.raw, manifest, secrets.get("ALPACA_API_KEY"),
                                           secrets.get("ALPACA_SECRET_KEY"),

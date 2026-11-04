@@ -112,3 +112,16 @@ def ticker_names(link_pairs: pd.DataFrame) -> pd.DataFrame:
         g = g.sort_values("revisions", ascending=False)
         rows.append({"ticker": tk, "name": g["title"].iloc[0], "all_names": " | ".join(g["title"])})
     return pd.DataFrame(rows, columns=["ticker", "name", "all_names"])
+
+
+def possible_unmerged_classes(company_map: pd.DataFrame) -> list[str]:
+    """Ticker pairs that look like share classes (e.g. CMCSA/CMCSK) but sit in different
+    companies - for a human to confirm or override."""
+    cid = dict(zip(company_map["ticker"], company_map["company_id"]))
+    tks = sorted(cid)
+    out = []
+    for i, a in enumerate(tks):
+        for b in tks[i + 1:]:
+            if looks_like_share_classes(a, b) and cid[a] != cid[b]:
+                out.append(f"{a}/{b}")
+    return out

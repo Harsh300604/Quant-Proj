@@ -49,3 +49,10 @@ def test_company_snapshots_dedupe_share_classes():
 def test_ticker_names_most_used_first():
     tn = ticker_names(pairs([("Google", "GOOG", 10), ("Alphabet Inc.", "GOOG", 50)])).set_index("ticker")
     assert tn.loc["GOOG", "name"] == "Alphabet Inc." and tn.loc["GOOG", "all_names"] == "Alphabet Inc. | Google"
+
+
+def test_possible_unmerged_classes():
+    from quantagents.data.companies import possible_unmerged_classes
+    cm = pd.DataFrame({"ticker": ["CMCSA", "CMCSK", "GOOG", "GOOGL", "AAPL"],
+                       "company_id": ["CMCSA", "CMCSK", "GOOGL", "GOOGL", "AAPL"], "reason": ""})
+    assert possible_unmerged_classes(cm) == ["CMCSA/CMCSK"]

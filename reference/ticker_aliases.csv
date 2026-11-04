@@ -8,5 +8,7 @@ CTRP,TCOM,Ctrip renamed Trip.com Group (2019)
 SYMC,GEN,"Symantec -> NortonLifeLock (NLOK 2019) -> Gen Digital (GEN 2022); verify history"
 NLOK,GEN,NortonLifeLock renamed Gen Digital (2022)
 WLTW,WTW,Willis Towers Watson ticker change (2022)
-QRTEA,QVCGA,"Qurate Retail renamed QVC Group (2025); verify symbol on Yahoo"
+QRTEA,QVCGA,"Qurate Retail renamed QVC Group (2025); QVCGA had no Yahoo history (6 Nov) - kept for grouping"
 QVCA,QVCGA,"Liberty Interactive QVC Group -> Qurate Retail (QRTEA, 2018) -> QVC Group; verify"
+DISCA,WBD,"Discovery Inc. renamed Warner Bros. Discovery (2022, same SEC filer); no Yahoo history for either"
+DISCK,WBD,"Discovery Inc. Series C -> Warner Bros. Discovery (2022)"

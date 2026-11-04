@@ -1,4 +1,4 @@
 # SEC CIK numbers for tickers missing from SEC's current ticker list (delisted or renamed).
 # Find a CIK at https://www.sec.gov/edgar/search/ (search the company name).
-# Add rows when raw/edgar/missing.csv lists a ticker.
+# Add rows when raw/edgar/missing.csv lists a ticker. cik can also be '=TICKER' (same CIK as that ticker).
 ticker,cik,note

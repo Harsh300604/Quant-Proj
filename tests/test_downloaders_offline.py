@@ -230,8 +230,9 @@ def test_edgar_finds_delisted_company_by_name(raw):
     responses.add(responses.GET, TICKERS_URL, json={"0": {"cik_str": 1730168, "ticker": "AVGO", "title": "Broadcom Inc."}})
     responses.add(responses.GET, CIK_LOOKUP_URL, body=(
         "BROADCOM CORP:0001054374:\nBROADCOM INC.:0001730168:\nBROADCOM LTD:0001649338:\nXILINX INC:0000743988:\n"))
+    names = {1054374: "BROADCOM CORP", 1649338: "BROADCOM LTD", 1730168: "BROADCOM INC.", 743988: "XILINX INC"}
     def subs(cik, years):
-        return {"cik": cik, "name": f"N{cik}", "filings": {"recent": {
+        return {"cik": cik, "name": names[cik], "filings": {"recent": {
             "form": ["10-K"] * len(years), "filingDate": [f"{y}-02-01" for y in years],
             "accessionNumber": [f"a{y}" for y in years], "acceptanceDateTime": [f"{y}-02-01T00:00:00.000Z" for y in years]},
             "files": []}}
@@ -251,3 +252,51 @@ def test_edgar_finds_delisted_company_by_name(raw):
     assert m.loc["XLNX", "cik"] == "0000743988"
     assert m.loc["NONAME", "confidence"].startswith("none")
     assert len(out["BRCM"]) == 2 and out["NONAME"] == []
+
+
+
+def test_name_used_during_handles_names_that_moved_between_filers():
+    """'VIACOM INC' was the CBS/Paramount filer until 2005 and the new Viacom from 2006."""
+    from datetime import date as d
+    from quantagents.data.download.edgar import name_used_during
+    cbs = {"name": "PARAMOUNT GLOBAL", "formerNames": [
+        {"name": "VIACOM INC", "from": "1995-01-01T00:00:00.000Z", "to": "2005-12-31T00:00:00.000Z"},
+        {"name": "CBS CORP", "from": "2005-12-31T00:00:00.000Z", "to": "2019-12-04T00:00:00.000Z"},
+        {"name": "VIACOMCBS INC.", "from": "2019-12-04T00:00:00.000Z", "to": "2022-02-16T00:00:00.000Z"}]}
+    viacom = {"name": "VIACOM INC", "formerNames": [
+        {"name": "New Viacom Corp.", "from": "2005-08-01T00:00:00.000Z", "to": "2005-12-20T00:00:00.000Z"}]}
+    period = (d(2014, 1, 1), d(2019, 12, 31))
+    assert not name_used_during(cbs, ["Viacom"], *period)
+    assert name_used_during(viacom, ["Viacom"], *period)
+    assert name_used_during(cbs, ["CBS Corporation"], *period)
+
+
+@responses.activate
+def test_edgar_shares_cik_within_a_company(raw):
+    """Liberty Interactive (QVCA) was renamed Qurate Retail (QRTEA): one company, one CIK."""
+    from datetime import date as d
+    from quantagents.data.download.edgar import CIK_LOOKUP_URL
+    responses.add(responses.GET, TICKERS_URL, json={})
+    responses.add(responses.GET, CIK_LOOKUP_URL, body="QURATE RETAIL, INC.:0001355096:\nLIBERTY INTERACTIVE CORP:0001355096:\n")
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0001355096.json"), json={
+        "cik": 1355096, "name": "QURATE RETAIL, INC.", "formerNames": [
+            {"name": "LIBERTY INTERACTIVE CORP", "from": "2011-01-01T00:00:00.000Z", "to": "2018-04-10T00:00:00.000Z"}],
+        "filings": {"recent": {"form": ["10-K"] * 6, "filingDate": [f"{y}-02-01" for y in range(2014, 2020)],
+                               "accessionNumber": list("abcdef"), "acceptanceDateTime": [""] * 6}, "files": []}})
+    responses.add(responses.GET, FACTS_URL.format(cik="0001355096"), json=S.sec_facts(1355096))
+    src = SecEdgar.create(raw, Manifest(raw), "QuantAgents research test@example.com", 1000)
+    out = src.download(["QVCA", "QRTEA"], names={"QVCA": ["Liberty Interactive"], "QRTEA": ["Qurate Retail"]},
+                       periods={"QVCA": (d(2014, 1, 1), d(2018, 4, 1)), "QRTEA": (d(2018, 4, 1), d(2019, 12, 1))},
+                       company_of={"QVCA": "QVCA", "QRTEA": "QVCA"})
+    assert out["QVCA"] and out["QRTEA"] and out["QVCA"] == out["QRTEA"]
+    m = pd.read_csv(raw / "edgar" / "cik_matches.csv", dtype=str)
+    assert list(m["ticker"]) == ["QVCA+QRTEA"] and m["cik"].iloc[0] == "0001355096"
+    tc = pd.read_csv(raw / "edgar" / "ticker_ciks.csv", dtype=str).set_index("ticker")
+    assert tc.loc["QRTEA", "cik"] == tc.loc["QVCA", "cik"] == "0001355096"
+
+
+def test_cik_override_same_as_other_ticker(tmp_path):
+    from quantagents.data.download.edgar import load_cik_overrides
+    f = tmp_path / "o.csv"
+    f.write_text("ticker,cik,note\nDISCA,=WBD,same filer\nABC,123,x\n", encoding="utf-8")
+    assert load_cik_overrides(f) == {"DISCA": "=WBD", "ABC": "0000000123"}
