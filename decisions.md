@@ -32,6 +32,7 @@ The final handoff documents (`docs/handoff.md`, `docs/design.md`, `docs/mentorin
 | 2026-11-05 | D23 | Sonnet thinking pilot moved from the personal key (Phase 5) to Stage 1 on the student key (Phase 6); the personal key stays Haiku-only | User (D22) | Stage 0 is Haiku only |
 | 2026-11-05 | D24 | Red-flag checks, the 20-stock × 12-month slice proof and cost forecast v1 moved from Phase 6 into Phase 5 | Developer | The Stage 0 gate requires them |
 | 2026-11-05 | D25 | Deliverables do not depend on a win: the working system, baseline vs. NASDAQ-100 results, transcripts, poster materials and handoff docs are delivered whatever the result; a non-outperforming enhancement is reported honestly with analysis | User | Fair, reproducible comparison is the promise |
+| 2026-11-06 | D26 | Delisted prices: first try WRDS/CRSP through UT Dallas (free; CRSP daily includes open prices, delisting returns and shares outstanding); if unavailable, a one-month paid vendor download that includes delisted US stocks (client money, separate from the API budget). Measured gap with Yahoo alone: 30% of members missing in Jan 2015 falling to 6% in Jan 2023 (average 14.8%) | User | Without them the backtest has survivorship bias and our index does not match the real NASDAQ-100 |
 
 ## Deviations from PROJECT_BRIEF.md
 

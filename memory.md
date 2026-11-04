@@ -62,7 +62,7 @@ Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan
 
 ## Open questions waiting on the user
 
-- **Delisted prices (blocks Phase 1 close):** 43 of 192 tickers have no Yahoo prices. Options: WRDS/CRSP via UT Dallas (free if available) / one-month paid vendor download (client money, not API) / accept and measure the gap.
+- **Delisted prices (blocks Phase 1 close):** 43 of 192 tickers have no Yahoo prices (30% of members in 2015 → 6% in 2023). Decided (D26): WRDS/CRSP via UT Dallas first, else a paid one-month vendor download. Waiting for the client/student to check WRDS access.
 
 - **Share classes:** 2014-18 membership (template) is company-level; 2019-23 (table) is share-class level. Recommended: company-level universe everywhere, secondary classes merged into the primary (reverses D6). Waiting for the answer.
 
