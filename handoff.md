@@ -3,7 +3,7 @@
 This file lets a new Claude Code chat pick up the build if the current session is lost (credit limit, disconnect).
 It is different from `docs/handoff.md`, which is the **final** handoff document for the mentor, written in Phase 9.
 
-_Last updated: 2026-11-04 (end of the Phase 1 build)._
+_Last updated: 2026-11-05 (funding stages added)._
 
 ---
 
@@ -32,6 +32,9 @@ Then:
   implementation_plan.md, update memory.md / decisions.md / handoff.md, commit and push,
   then stop and give me the manual checks. Wait for my confirmation before the next phase.
 - Ask me before any API spend beyond a few test calls, with a cost estimate.
+- Follow the "Funding stages" section of implementation_plan.md: never ask for money ahead of
+  evidence; stop at each stage gate with the gate checklist; never cross into the next stage's
+  budget without my explicit approval.
 - Everything on my laptop lives on the D: drive (C: is full). The code must run on Windows.
 ```
 
@@ -73,7 +76,8 @@ Data websites are blocked from the cloud session, so never try to download real 
   - personal key (`key_label: personal`): $3.00 budget, **automatic stop at $2.40**, shown in USD and INR; `dev` tier (Haiku) only, plus one approved Sonnet pilot;
   - student key: $150 project cap;
   - no full or long backtests on the personal key.
-- **Key swap:** the key comes only from `.env` (`ANTHROPIC_API_KEY`), plus `key_label` in config. Never print, log or commit keys.
+- **Funding stages (D22):** Stage 0 personal $3.00 (Haiku, small slices) → Stage 1 student ~$20 (Sonnet pilot, thinking decision, first baseline slice) → Stage 2 ~$80–90 (three full runs, after an approved ±20% forecast) → Contingency up to $150 total with explicit approval. Budgets live in `configs/stages.yaml`; the active stage is `budget.stage`; the ledger stops at 80% of the stage budget. At each gate: what was built, evidence, spend vs. budget, next forecast (`docs/cost_forecast.md`), exact amount to request. The money buys test runs, not outcomes; deliverables don't depend on a win.
+- **Key swap:** the key comes only from `.env` (`ANTHROPIC_API_KEY`), plus `key_label` and `stage` in config. Never print, log or commit keys.
 - **Storage:** all paths come from config and point to `D:\CreatED-Quant\...`. Caches and temp folders are redirected per session by `scripts/env.ps1`. Nothing is written to C:.
 - **Phase gate:** build one phase, test it, give the user copy-paste manual checks, then stop.
 
@@ -136,6 +140,7 @@ At the end of every phase or work block, before pushing:
 | `decisions.md` | Decisions, deviations, known issues |
 | `memory.md` | Current state |
 | `docs/QuantAgents_Client_Requirements.docx` | What the client must provide, with costs |
+| `configs/stages.yaml` | Funding-stage budgets (enforced by the ledger from Phase 3) |
 | `README.md` | Windows quick start and key swap checklist |
 | `quantagents/` | Python package: `config.py`, `paths.py`, `env_secrets.py`, `logs.py`, `data/download/*` |
 | `configs/`, `scripts/`, `tests/`, `reference/` | Config, helper scripts, tests, reference CSVs |

@@ -140,6 +140,7 @@ class Models(Strict):
 
 class Budget(Strict):
     key_label: str
+    stage: str = "stage0"
     run_budget_usd: float = Field(gt=0)
     inr_per_usd: float = Field(gt=0)
 
@@ -230,7 +231,47 @@ def load_config(path: str | Path = CONFIG_DIR / "base.yaml") -> Config:
     data["source_file"] = str(path)
     cfg = Config.model_validate(data)
     load_key_budgets()[cfg.budget.key_label]  # unknown label -> KeyError below
+    stage = load_stage_budgets()[cfg.budget.stage]
+    if stage.key_label != cfg.budget.key_label:
+        raise ValueError(f"funding stage {cfg.budget.stage!r} is for key_label {stage.key_label!r}, "
+                         f"but the config uses key_label {cfg.budget.key_label!r}")
     return cfg
+
+
+class StageBudget(Strict):
+    key_label: str
+    budget_usd: float = Field(gt=0)
+    stop_fraction: float = Field(gt=0, le=1)
+    buys: str = ""
+
+    @property
+    def stop_at_usd(self) -> float:
+        return round(self.budget_usd * self.stop_fraction, 6)
+
+
+PROJECT_CAP_USD = 150.0
+
+
+def load_stage_budgets(path: str | Path = CONFIG_DIR / "stages.yaml") -> dict[str, StageBudget]:
+    """Funding stages. The student-key stages must add up to no more than the $150 cap."""
+    with open(path, encoding="utf-8") as fh:
+        raw = yaml.safe_load(fh) or {}
+    stages = {name: StageBudget.model_validate(v) for name, v in raw.items()}
+    student_total = sum(st.budget_usd for st in stages.values() if st.key_label == "student")
+    if student_total > PROJECT_CAP_USD + 1e-9:
+        raise ValueError(f"student-key stages total ${student_total:.2f}, above the ${PROJECT_CAP_USD:.0f} cap")
+    keys = load_key_budgets()
+    for name, st in stages.items():
+        keys[st.key_label]  # unknown key label -> KeyError
+        if st.budget_usd > keys[st.key_label].budget_usd:
+            raise ValueError(f"stage {name!r} budget exceeds the {st.key_label!r} key budget")
+
+    class _Stages(dict):
+        def __missing__(self, key: str):
+            raise KeyError(f"funding stage {key!r} is not defined in configs/stages.yaml "
+                           f"(known: {sorted(self)})")
+
+    return _Stages(stages)
 
 
 def load_key_budgets(path: str | Path = CONFIG_DIR / "keys.yaml") -> dict[str, KeyBudget]:

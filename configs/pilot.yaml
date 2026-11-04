@@ -18,5 +18,6 @@ models:
 
 budget:
   key_label: personal
+  stage: stage0
   run_budget_usd: 0.10
   inr_per_usd: 88.0

@@ -1,0 +1,23 @@
+# Funding stages (see "Funding stages" in implementation_plan.md). The cost ledger tracks spend
+# per stage and stops automatically at budget_usd x stop_fraction. Moving to the next stage
+# (changing budget.stage in the config) needs the user's explicit approval of that stage's funds.
+stage0:
+  key_label: personal
+  budget_usd: 3.00        # Rs 300 personal key: build and prove on small slices, Haiku only
+  stop_fraction: 0.80     # stop at $2.40
+  buys: "Build and prove the pipeline on small slices (5-20 stocks, 3-12 months), Haiku only"
+stage1:
+  key_label: student
+  budget_usd: 20.00
+  stop_fraction: 0.80     # stop at $16.00
+  buys: "Sonnet pilot, thinking on/off decision, first baseline slice on the paper tier"
+stage2:
+  key_label: student
+  budget_usd: 90.00
+  stop_fraction: 0.80     # stop at $72.00
+  buys: "Full 2015-2023 runs: baseline, enhanced, names-hidden"
+contingency:
+  key_label: student
+  budget_usd: 40.00       # brings the student key to the $150 total
+  stop_fraction: 0.80
+  buys: "Reruns, or thinking turned on - only with explicit approval"

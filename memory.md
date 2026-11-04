@@ -3,25 +3,29 @@
 Short, factual and always up to date. Update it at the end of every phase or work block, before pushing.
 History belongs in `decisions.md`; the plan lives in `implementation_plan.md`.
 
-_Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
+_Last updated: 2026-11-05 (Phase 1: full download running; funding stages added)._
 
 ## Where we are
 
 | Item | State |
 |---|---|
 | Plan | `implementation_plan.md`, approved 2026-11-04 |
-| Current phase | **Phase 1: Setup, config and downloaders.** Built; 61 tests pass; **waiting for the user's manual checks on the laptop** |
+| Current phase | **Phase 1.** Manual checks 1–5 passed; **check 6 (full download) running overnight on the laptop** |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Check 5 passed: Dec 2016/2020/2022 reconstitutions correct; 2016 mid-year dates approximate (known issue) |
-| Next step | User runs check 6 (full download) and answers the share-class question (company-level recommended). Then Phase 1 is done -> Phase 2 |
+| Last step | Funding stages added (plan section, `configs/stages.yaml`, config validation, check_env line; 79 tests). Membership finished: 0 review, 0 jumps, Dec 2016/2017/2020/2022 match Nasdaq |
+| Next step | User sends the full-download results (summary, Yahoo-missing count, SEC-missing count) and the share-class answer. Then tick Phase 1 and start Phase 2 |
 
-## Spend so far
+## Spend so far and funding stage
 
-| Key label | Spent | Budget | Hard stop |
-|---|---|---|---|
-| personal | $0.00 | $3.00 | $2.40 |
-| student | not received yet | $150 | per-run budgets in config |
+Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan.md` → "Funding stages" (decision D22).
+
+| Stage | Key label | Spent | Budget | Auto-stop | Status |
+|---|---|---|---|---|---|
+| 0 | personal | $0.00 | $3.00 | $2.40 | active |
+| 1 | student | — | ~$20 | $16.00 | not released (needs the Stage 0 gate) |
+| 2 | student | — | ~$80–90 | $72.00 | not released (needs an approved forecast) |
+| Contingency | student | — | up to $150 total | — | only with explicit approval |
 
 ## What the user has provided
 
@@ -46,6 +50,7 @@ _Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
 - Never re-open the decisions in brief §4. Ask when something is ambiguous.
 - Keep `handoff.md`, `memory.md` and `decisions.md` current.
 - Mentoring: 16 sessions × 60 min, `docs/mentoring.md` written at the end (see `handoff.md`).
+- Funding: never ask for money ahead of evidence. At each stage gate give: what was built, evidence, spend vs. stage budget, next-stage forecast, exact amount to request. The money buys test runs, not outcomes.
 
 ## Phase 1 facts a new chat needs
 
@@ -59,5 +64,6 @@ _Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
 
 - **Share classes:** 2014-18 membership (template) is company-level; 2019-23 (table) is share-class level. Recommended: company-level universe everywhere, secondary classes merged into the primary (reverses D6). Waiting for the answer.
 
-- Pilot rerun result after the parser fix; later, the missing-ticker counts from the full download.
+- Full-download results: summary table, Yahoo-missing count, SEC-missing count.
+- Optional: confirm the 2016-03-01 CSX added / KLAC removed change.
 - `ANTHROPIC_API_KEY` is still empty in the laptop `.env` (not needed until Phase 3).

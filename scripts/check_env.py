@@ -20,7 +20,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from quantagents.config import load_config, load_key_budgets  # noqa: E402
+from quantagents.config import load_config, load_key_budgets, load_stage_budgets  # noqa: E402
 from quantagents.env_secrets import load_secrets  # noqa: E402
 from quantagents.paths import Paths, drive_of  # noqa: E402
 
@@ -75,6 +75,9 @@ def main(argv: list[str] | None = None) -> int:
     line("OK", "API key label", f"{cfg.budget.key_label}, budget ${kb.budget_usd:.2f}, "
          f"automatic stop at ${kb.stop_at_usd:.2f} "
          f"(Rs {kb.stop_at_usd * cfg.budget.inr_per_usd:,.0f} at Rs {cfg.budget.inr_per_usd:g}/$)")
+    st = load_stage_budgets()[cfg.budget.stage]
+    line("OK", "Funding stage", f"{cfg.budget.stage}, budget ${st.budget_usd:.2f}, automatic stop at "
+         f"${st.stop_at_usd:.2f} (Rs {st.stop_at_usd * cfg.budget.inr_per_usd:,.0f}) - {st.buys}")
     line("OK", "Model tier", f"{cfg.models.tier} (memo {cfg.models.active.memo}, "
          f"committee {cfg.models.active.committee})")
 
