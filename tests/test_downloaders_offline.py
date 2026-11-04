@@ -323,3 +323,32 @@ def test_edgar_rejects_reused_current_ticker(raw):
     tc = pd.read_csv(raw / "edgar" / "ticker_ciks.csv", dtype=str).set_index("ticker")
     assert tc.loc["SNDK", "cik"] == "0001000180"
     assert "rejected" in tc.loc["SNDK", "source"]
+
+
+
+@responses.activate
+def test_edgar_keeps_old_large_filer_whose_recent_section_is_short(raw):
+    """A big company that left the index in 2016 has only 2023-2026 in its 'recent' section
+    (Form 4s fill it); its 2014-2016 reports are in an archive page. It must NOT be rejected."""
+    from datetime import date as d
+    responses.add(responses.GET, TICKERS_URL, json={"0": {"cik_str": 320193, "ticker": "OLDX", "title": "Old X"}})
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0000320193.json"), json={
+        "cik": 320193, "name": "OLD X INC", "filings": {
+            "recent": {"form": ["4"] * 3, "filingDate": ["2023-05-01", "2024-05-01", "2026-05-01"],
+                       "accessionNumber": ["a", "b", "c"], "acceptanceDateTime": [""] * 3},
+            "files": [{"name": "CIK0000320193-submissions-001.json", "filingCount": 900,
+                       "filingFrom": "1994-01-26", "filingTo": "2023-04-30"}]}})
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0000320193-submissions-001.json"),
+                  json=S.sec_submissions_page())
+    responses.add(responses.GET, FACTS_URL.format(cik="0000320193"), json=S.sec_facts(320193))
+    src = SecEdgar.create(raw, Manifest(raw), "QuantAgents research test@example.com", 1000)
+    out = src.download(["OLDX"], names={"OLDX": ["Old X"]}, periods={"OLDX": (d(2014, 1, 1), d(2016, 6, 1))})
+    tc = pd.read_csv(raw / "edgar" / "ticker_ciks.csv", dtype=str).set_index("ticker")
+    assert tc.loc["OLDX", "source"] == "sec_current_list" and out["OLDX"]
+
+
+def test_earliest_filing_uses_archive_pages():
+    from quantagents.data.download.edgar import earliest_filing
+    sub = {"filings": {"recent": {"filingDate": ["2024-01-01"]}, "files": [{"filingFrom": "1999-03-02"}]}}
+    assert earliest_filing(sub) == "1999-03-02"
+    assert earliest_filing({"filings": {"recent": {"filingDate": ["2025-06-01"]}, "files": []}}) == "2025-06-01"

@@ -117,6 +117,16 @@ def name_used_during(submissions: dict, names: list[str], start: date, end: date
     return False
 
 
+def earliest_filing(submissions: dict) -> str:
+    """Date (YYYY-MM-DD) of the filer's first filing, including the older archive pages
+    (``filings.files[].filingFrom``) - the "recent" section alone only covers the last
+    ~1,000 filings, which for a large company may be just a few years."""
+    filings = submissions.get("filings", {})
+    dates = list(filings.get("recent", {}).get("filingDate", []))
+    dates += [f.get("filingFrom", "") for f in filings.get("files", []) if f.get("filingFrom")]
+    return min((d[:10] for d in dates if d), default="9999-12-31")
+
+
 def periodic_filings_between(submissions: dict, start: date, end: date) -> int:
     """Number of 10-K/10-Q/20-F/40-F filings dated within [start, end]."""
     recent = submissions.get("filings", {}).get("recent", submissions)
@@ -184,7 +194,7 @@ class SecEdgar(FundamentalsSource):
             sub = self._save(SUBMISSIONS_URL.format(name=f"CIK{c}.json"),
                              self.folder / "submissions" / f"CIK{c}.json.gz", "submissions", c)
             window = (date(start.year - 1, 1, 1), end)
-            score = periodic_filings_between(sub, *window) if sub and name_used_during(sub, names, *window) else 0
+            score = self.filings_in_window(c, sub, *window) if sub and name_used_during(sub, names, *window) else 0
             scored.append((score, c, (sub or {}).get("name", "")))
         scored.sort(key=lambda x: (-x[0], x[1]))
         good = [x for x in scored if x[0] > 0]
@@ -197,6 +207,20 @@ class SecEdgar(FundamentalsSource):
         return {"ticker": ticker, "names": " | ".join(names), "cik": best[1], "edgar_name": best[2],
                 "candidates": len(cands), "filings_in_period": best[0],
                 "confidence": "high" if confident else "check"}
+
+    def filings_in_window(self, cik: str, sub: dict, start: date, end: date) -> int:
+        """10-K/10-Q/20-F filings in [start, end], from "recent" plus any archive page whose
+        date range overlaps the window (pages are downloaded and cached)."""
+        n = periodic_filings_between(sub, start, end)
+        for f in sub.get("filings", {}).get("files", []):
+            f_from, f_to = f.get("filingFrom", "0000")[:10], f.get("filingTo", "9999")[:10]
+            if f_from <= end.isoformat() and f_to >= start.isoformat():
+                page = self._save(SUBMISSIONS_URL.format(name=f["name"]),
+                                  self.folder / "submissions" / f"{f['name'].replace('.json', '')}.json.gz",
+                                  "submissions_page", cik)
+                if page:
+                    n += periodic_filings_between(page, start, end)
+        return n
 
     def _save(self, url: str, path: Path, kind: str, cik: str) -> dict | None:
         if self.manifest.is_complete(path):
@@ -236,7 +260,8 @@ class SecEdgar(FundamentalsSource):
 
         # A ticker in SEC's CURRENT list may now belong to a different, newer company (ticker
         # reuse: VIA = Via Transportation since 2025, SNDK = the 2025 Sandisk spin-off). Accept a
-        # current-list match only if that filer filed reports while the ticker was in the index.
+        # current-list match only if that filer already existed (first filing on or before the
+        # end of the ticker's index membership).
         self.rejected_current: dict[str, str] = {}
         if periods:
             for tk in list(ciks):
@@ -246,8 +271,9 @@ class SecEdgar(FundamentalsSource):
                 sub = self._save(SUBMISSIONS_URL.format(name=f"CIK{c}.json"),
                                  self.folder / "submissions" / f"CIK{c}.json.gz", "submissions", c)
                 start, end = periods[tk]
-                if sub is not None and periodic_filings_between(sub, date(start.year - 1, 1, 1), end) == 0:
-                    self.rejected_current[tk] = f"{c} ({sub.get('name', '')})"
+                if sub is not None and earliest_filing(sub) > end.isoformat():
+                    # the filer did not exist yet while this ticker was in the index
+                    self.rejected_current[tk] = f"{c} ({sub.get('name', '')}, first filing {earliest_filing(sub)})"
                     del ciks[tk]
 
         def share_within_companies():
