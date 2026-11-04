@@ -1,4 +1,18 @@
 # Hand corrections to NASDAQ-100 membership dates, from Nasdaq's official announcements.
 # action: add | remove. effective_date: the date the change took effect (YYYY-MM-DD).
-# Each row moves the nearest Wikipedia-derived boundary (within 31 days) to the exact date.
+# Each row moves the nearest Wikipedia-derived boundary (within 180 days) to the exact date.
 effective_date,ticker,action,source,note
+2016-12-19,CTAS,add,"Nasdaq annual reconstitution Dec 2016 (effective Monday after 3rd Friday of Dec); Wikipedia template updated May 2017","verify against Nasdaq announcement"
+2016-12-19,HAS,add,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,HOLX,add,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,IDXX,add,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,JBHT,add,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,KLAC,add,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,WYNN,add,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,BBBY,remove,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,NTAP,remove,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,NXPI,remove,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,SBAC,remove,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,SRCL,remove,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,TRIP,remove,"Nasdaq annual reconstitution Dec 2016",
+2016-12-19,WFM,remove,"Nasdaq annual reconstitution Dec 2016",

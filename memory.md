@@ -13,8 +13,8 @@ _Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
 | Current phase | **Phase 1: Setup, config and downloaders.** Built; 61 tests pass; **waiting for the user's manual checks on the laptop** |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | 0 snapshots need review, but the 2017 spot-check showed a 'Historical components' list parsed as members. Fixed (skip historical sections, prefer template, jump check). 74 tests pass |
-| Next step | User: `git pull`, rerun `run_all --pilot` (fetches ~40 template versions, ~3-4 min), `membership --diagnose` (expect 0 review and 0 suspicious jumps), then `--year 2017/2020/2022` again vs Nasdaq announcements. Then check 6 (full download) |
+| Last step | Membership clean (0 review, 0 jumps; 2017 matches Nasdaq). Added Dec 2016 date corrections + 6 name mappings |
+| Next step | Waiting for the user's decision on share classes (company-level recommended). Then: user reruns pilot, checks 2020/2022 Dec changes, then check 6 (full download) |
 
 ## Spend so far
 
@@ -56,6 +56,8 @@ _Last updated: 2026-11-05 (Phase 1 manual checks in progress)._
 - The `.ps1` scripts have never been executed (no PowerShell in the cloud). Fix them from the user's error output if needed.
 
 ## Open questions waiting on the user
+
+- **Share classes:** 2014-18 membership (template) is company-level; 2019-23 (table) is share-class level. Recommended: company-level universe everywhere, secondary classes merged into the primary (reverses D6). Waiting for the answer.
 
 - Pilot rerun result after the parser fix; later, the missing-ticker counts from the full download.
 - `ANTHROPIC_API_KEY` is still empty in the laptop `.env` (not needed until Phase 3).

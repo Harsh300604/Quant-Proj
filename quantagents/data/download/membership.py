@@ -537,7 +537,7 @@ def load_manual_changes(path: Path = REFERENCE / "ndx_changes_manual.csv") -> pd
 
 
 def build_spells(snaps: pd.DataFrame, manual: pd.DataFrame | None = None,
-                 window_days: int = 31) -> tuple[pd.DataFrame, list[str]]:
+                 window_days: int = 180) -> tuple[pd.DataFrame, list[str]]:
     """Snapshots -> spells (ticker, start_utc, end_utc[exclusive or NaT], source).
 
     A ticker's spell starts at the first snapshot where it appears and ends at the first
