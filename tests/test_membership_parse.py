@@ -207,3 +207,14 @@ def test_snapshot_jumps_flags_bad_parse():
     snaps = snaps_from({"2017-05-01": good, "2017-05-15": good[:-1] + ["NEWX"], "2017-06-01": garbage})
     j = snapshot_jumps(snaps)
     assert list(j["change"]) == [2, 120] and (j["change"] > MAX_JUMP).sum() == 1
+
+
+def test_coverage_quick_counts_missing_members():
+    import importlib.util
+    from quantagents.config import REPO_ROOT
+    spec = importlib.util.spec_from_file_location("cq", REPO_ROOT / "scripts" / "coverage_quick.py")
+    cq = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cq)
+    spells, _ = build_spells(snaps_from({"2014-12-15": ["AAA", "DEAD", "CCC"], "2015-03-15": ["AAA", "CCC", "NEW"]}))
+    cov = cq.coverage(spells, {"DEAD"}, date(2015, 1, 1), date(2015, 4, 1))
+    assert list(cov["no_prices"]) == [1, 1, 1, 0] and cov["pct"].iloc[0] == 33.3
