@@ -2,3 +2,11 @@
 # companies" box that the automatic matching could not learn. Names come from:
 #   python -m quantagents.data.download.membership --diagnose
 title,ticker
+Facebook,FB
+Maxim Integrated,MXIM
+Sirius XM Holdings,SIRI
+Tesla Motors,TSLA
+Endo International plc,ENDP
+Ross Dress for Less,ROST
+Shire (pharmaceutical company),SHPG
+J. B. Hunt Transport Services,JBHT
