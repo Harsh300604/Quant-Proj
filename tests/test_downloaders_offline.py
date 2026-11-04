@@ -338,8 +338,9 @@ def test_edgar_keeps_old_large_filer_whose_recent_section_is_short(raw):
                        "accessionNumber": ["a", "b", "c"], "acceptanceDateTime": [""] * 3},
             "files": [{"name": "CIK0000320193-submissions-001.json", "filingCount": 900,
                        "filingFrom": "1994-01-26", "filingTo": "2023-04-30"}]}})
-    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0000320193-submissions-001.json"),
-                  json=S.sec_submissions_page())
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0000320193-submissions-001.json"), json={
+        "accessionNumber": ["p1", "p2", "p3"], "acceptanceDateTime": [""] * 3,
+        "form": ["10-K", "10-Q", "10-K"], "filingDate": ["2014-10-27", "2015-04-28", "2015-10-28"]})
     responses.add(responses.GET, FACTS_URL.format(cik="0000320193"), json=S.sec_facts(320193))
     src = SecEdgar.create(raw, Manifest(raw), "QuantAgents research test@example.com", 1000)
     out = src.download(["OLDX"], names={"OLDX": ["Old X"]}, periods={"OLDX": (d(2014, 1, 1), d(2016, 6, 1))})
@@ -352,3 +353,30 @@ def test_earliest_filing_uses_archive_pages():
     sub = {"filings": {"recent": {"filingDate": ["2024-01-01"]}, "files": [{"filingFrom": "1999-03-02"}]}}
     assert earliest_filing(sub) == "1999-03-02"
     assert earliest_filing({"filings": {"recent": {"filingDate": ["2025-06-01"]}, "files": []}}) == "2025-06-01"
+
+
+
+@responses.activate
+def test_edgar_rejects_private_company_with_old_form_d_filings(raw):
+    """Via Transportation filed Form D (private fundraising) for years before listing in 2025;
+    that must not make it look like the 2014-2019 index member VIA (Viacom)."""
+    from datetime import date as d
+    from quantagents.data.download.edgar import CIK_LOOKUP_URL
+    responses.add(responses.GET, TICKERS_URL, json={"0": {"cik_str": 1603015, "ticker": "VIA", "title": "Via Transportation"}})
+    responses.add(responses.GET, CIK_LOOKUP_URL, body="VIACOM INC.:0001339947:\n")
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0001603015.json"), json={
+        "cik": 1603015, "name": "Via Transportation, Inc.", "filings": {"recent": {
+            "form": ["D", "D", "S-1", "10-Q"], "filingDate": ["2014-03-01", "2017-05-01", "2025-08-01", "2025-11-01"],
+            "accessionNumber": list("abcd"), "acceptanceDateTime": [""] * 4}, "files": []}})
+    responses.add(responses.GET, SUBMISSIONS_URL.format(name="CIK0001339947.json"), json={
+        "cik": 1339947, "name": "VIACOM INC.", "filings": {"recent": {
+            "form": ["10-K"] * 5, "filingDate": [f"{y}-11-15" for y in range(2014, 2019)],
+            "accessionNumber": list("vwxyz"), "acceptanceDateTime": [""] * 5}, "files": []}})
+    responses.add(responses.GET, FACTS_URL.format(cik="0001339947"), json=S.sec_facts(1339947))
+    src = SecEdgar.create(raw, Manifest(raw), "QuantAgents research test@example.com", 1000)
+    src.download(["VIA", "VIAB"], names={"VIA": ["Viacom"], "VIAB": ["Viacom"]},
+                 periods={"VIA": (d(2014, 1, 1), d(2019, 12, 1)), "VIAB": (d(2014, 1, 1), d(2019, 12, 1))},
+                 company_of={"VIA": "VIA", "VIAB": "VIA"})
+    tc = pd.read_csv(raw / "edgar" / "ticker_ciks.csv", dtype=str).set_index("ticker")
+    assert tc.loc["VIA", "cik"] == tc.loc["VIAB", "cik"] == "0001339947"
+    assert "rejected" in tc.loc["VIA", "source"]

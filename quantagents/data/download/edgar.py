@@ -260,8 +260,8 @@ class SecEdgar(FundamentalsSource):
 
         # A ticker in SEC's CURRENT list may now belong to a different, newer company (ticker
         # reuse: VIA = Via Transportation since 2025, SNDK = the 2025 Sandisk spin-off). Accept a
-        # current-list match only if that filer already existed (first filing on or before the
-        # end of the ticker's index membership).
+        # current-list match only if that filer filed annual/quarterly reports (10-K, 10-Q,
+        # 20-F, 40-F) during the ticker's index membership, counting SEC's archive pages too.
         self.rejected_current: dict[str, str] = {}
         if periods:
             for tk in list(ciks):
@@ -271,9 +271,13 @@ class SecEdgar(FundamentalsSource):
                 sub = self._save(SUBMISSIONS_URL.format(name=f"CIK{c}.json"),
                                  self.folder / "submissions" / f"CIK{c}.json.gz", "submissions", c)
                 start, end = periods[tk]
-                if sub is not None and earliest_filing(sub) > end.isoformat():
-                    # the filer did not exist yet while this ticker was in the index
-                    self.rejected_current[tk] = f"{c} ({sub.get('name', '')}, first filing {earliest_filing(sub)})"
+                if sub is not None and (earliest_filing(sub) > end.isoformat() or
+                                        self.filings_in_window(c, sub, date(start.year - 1, 1, 1), end) == 0):
+                    # this filer filed no annual/quarterly reports while the ticker was in the
+                    # index (a newer company now uses the ticker; private-company Form D filings
+                    # do not count)
+                    self.rejected_current[tk] = (f"{c} ({sub.get('name', '')}: no 10-K/10-Q/20-F during "
+                                                 f"{start.year}-{end.year}, first filing {earliest_filing(sub)})")
                     del ciks[tk]
 
         def share_within_companies():

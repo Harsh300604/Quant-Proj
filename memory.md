@@ -13,7 +13,7 @@ _Last updated: 2026-11-06 (company level + SEC name lookup built; delisted price
 | Current phase | **Phase 1** (almost closed). Full download done. Open: delisted prices for 43 of 192 tickers (D26: WRDS/CRSP first, else paid); user to run manual check 7 |
 | Phases done | none |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Reuse check fixed VIA/VIAB/SNDK/VIP but wrongly dropped 14 tickers (short 'recent' section); fixed with first-filing-date check + archive pages; 102 tests |
+| Last step | Reuse check: VIA slipped back (Via Transportation's Form D history); now requires periodic reports during membership across archive pages; 103 tests |
 | Next step | User reruns `run_all --all --only membership,edgar` + the source-count command; expect missing 0. Then user's OK to close Phase 1 (delisted prices open, D26) and start Phase 2 |
 
 ## Spend so far and funding stage
