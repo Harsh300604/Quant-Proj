@@ -161,6 +161,11 @@ def diagnose(html: str) -> str:
         lines.append(f"  table {i}: {len(t)} rows, columns {[str(c)[:30] for c in t.columns][:6]}")
     lines.append(f"list items: {len(list(root.iter('li')))}; nasdaq.com links: {len(_href_tickers(root))}; "
                  f"(TICKER) patterns on page: {len(_paren_tickers(root))}")
+    nav = navbox_titles(html)
+    lines.append(f"'List of NASDAQ-100 companies' box: {len(nav)} article links; first 12: {nav[:12]}")
+    boxes = [el for el in root.iter("table", "div") if "navbox" in (el.get("class") or "")]
+    lines.append(f"navigation boxes on page: {len(boxes)}; their headings: "
+                 f"{[re.sub(r'\\s+', ' ', b.text_content()[:60]).strip() for b in boxes[:4]]}")
     text = root.text_content()
     for word in ("Apple", "Microsoft", "Activision"):
         i = text.find(word)
@@ -500,6 +505,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         counts = snapshot_counts(snaps)
         counts["year"] = counts["snapshot_utc"].dt.year
+        print("Parser version: 3 (navbox)")
         print("Snapshots by year (ok / need review) and parse method:")
         for y, g_ in counts.groupby("year"):
             methods = ", ".join(f"{m}={n}" for m, n in g_["method"].value_counts().items())
