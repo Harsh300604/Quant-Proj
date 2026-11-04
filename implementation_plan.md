@@ -130,7 +130,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 
 **Manual checks (on your laptop):**
 
-1. One-time setup. If Python 3.12+ isn't installed, first install it to `D:\Python312` (python.org installer → "Customize installation" → set the location).
+1. One-time setup. If Python 3.12+ isn't installed, first install Python 3.12.10 to `D:\Python312` (installer: https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe → "Customize installation" → set the location). An existing Python 3.11 can stay installed.
    ```powershell
    cd D:\CreatED-Quant
    git clone https://github.com/Harsh300604/Quant-Proj quantagents

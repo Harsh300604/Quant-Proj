@@ -10,7 +10,7 @@ An LLM multi-agent system that manages a **simulated** NASDAQ-100 portfolio. It 
 
 ## Quick start (Windows, everything on D:)
 
-1. Install **Python 3.12** to `D:\Python312`. Use the python.org installer, choose "Customize installation", and set the install location. Skip this if Python 3.12 or newer is already installed.
+1. Install **Python 3.12.10** (the last 3.12 release with a Windows installer: https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe) to `D:\Python312`. Use the installer, choose "Customize installation", and set the install location. Skip this if Python 3.12 or newer is already installed.
 2. In PowerShell:
    ```powershell
    cd D:\CreatED-Quant
