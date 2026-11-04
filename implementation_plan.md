@@ -1,7 +1,7 @@
 # QuantAgents: Implementation Plan
 
 Source of truth: `PROJECT_BRIEF.md`. Final documentation phase: `HANDOFF_REQUIREMENTS.md`.
-Running log of decisions, deviations and known issues: `docs/decisions_log.md`.
+Running log of decisions, deviations and known issues: `decisions.md`.
 
 Status legend: `[ ]` not started, `[x]` done, `[~]` partial or deviated (see the log).
 
@@ -64,7 +64,7 @@ All dollar figures are planning estimates. Phase 6 replaces them with measured n
 
 ## Recommendations adopted
 
-You approved these on 4 Nov 2026. They are also recorded in `docs/decisions_log.md`.
+You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 
 | # | Question | Decision |
 |---|---|---|
@@ -95,7 +95,7 @@ You approved these on 4 Nov 2026. They are also recorded in `docs/decisions_log.
 - `quantagents/data/download/` with `base.py` (source interface) and one script per source: `prices.py`, `news.py`, `edgar.py`, `membership.py`, `factors.py`, `riskfree.py`
 - `quantagents/data/download/run_all.py`: resumable, with progress shown and a `--pilot` mode (5 tickers)
 - `scripts/check_env.py`: checks Python version, D: paths, `.env` keys present (shown as present/missing, never their values), C: free space before and after
-- `docs/decisions_log.md`
+- `decisions.md`
 
 **Tasks:**
 - [ ] Project skeleton, dependencies (Python 3.11 recommended, 3.10+ supported)
@@ -589,7 +589,17 @@ python scripts\build_poster_assets.py
 - [ ] `handoff.md`: all 13 required sections; numbers pulled from `runs/` and `reports/`
 - [ ] `handoff.docx`: generated from the same content, with tables and charts embedded
 - [ ] `design.md`: all 12 sections, with Mermaid diagrams (architecture, one-rebalance sequence)
-- [ ] `mentoring.md`: all 9 sections, 9 sessions, an exercise bank that uses real files and commands
+- [ ] `mentoring.md`: all 9 required sections, **16 sessions of 60 minutes** (decision D13). The mentor first builds and tests the whole project, then uses the finished repo as the reference ("answer key") while the student re-develops it step by step. Each session has:
+  - an objective;
+  - a 10-minute recap of the previous session;
+  - the concepts to explain, with pointers to `design.md` and code;
+  - a build task for the student, with exact commands;
+  - how to compare the student's code with the reference;
+  - an acceptance check;
+  - common mistakes;
+  - homework.
+
+  It also includes an exercise bank that uses real files and commands. The planned session arc is in `handoff.md` (root).
 - [ ] Quality-bar checklist from `HANDOFF_REQUIREMENTS.md`, including following the quick start in a clean clone
 
 **Automated tests:**
