@@ -88,3 +88,7 @@ Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan
    80% stops) and 5 research memos on Haiku. Read the Claude API docs first. Needs the user's
    personal key in `.env` (`ANTHROPIC_API_KEY` is still empty on the laptop).
 6. Phase 4 (constraints, optimizer, backtest engine), then Phase 5 incl. D32-D35, Stage 0 gate.
+
+## Documents sent to the user (not in the repo)
+
+- 6 Nov: completed project scope docx for the student/parent (template from the user; contains the student's name, so kept out of git). Student age, grade, location and background left highlighted for the family to fill in. Costs section matches the funding stages (D22) and D26.
