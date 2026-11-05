@@ -3,18 +3,18 @@
 Short, factual and always up to date. Update it at the end of every phase or work block, before pushing.
 History belongs in `decisions.md`; the plan lives in `implementation_plan.md`.
 
-_Last updated: 2026-11-06 (Phase 2 built; waiting for manual checks)._
+_Last updated: 2026-11-06 (handover point: this chat ends here; a new dev chat continues)._
 
 ## Where we are
 
 | Item | State |
 |---|---|
 | Plan | `implementation_plan.md`, approved 2026-11-04 |
-| Current phase | **Phase 2** built (DuckDB ETL, calendar, gateway, leak tests, weights, indicators, data report); 225 tests pass; **waiting for the user's manual checks** |
+| Current phase | **Phase 2** built and pushed (225 tests); **user's manual checks pending** (pip install, ETL build, leak tests, gateway CLI, data report) |
 | Phases done | **Phase 1** (closed 6 Nov; open item: 42 delisted-ticker prices, D26) |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Phase 2 code + tests pushed. Leak test caught pandas-ta warm-up values (fixed: D30) and a short-history crash |
-| Next step | User: `pip install -r requirements.txt`, `pytest -q`, `python -m quantagents.data.etl`, gateway CLI, `python scripts\\data_report.py`; paste the report. Then fill ADR ratios / fix ticker-reuse findings, close Phase 2 |
+| Last step | Client materials reviewed; all 7 suggestions adopted (D32-D37) and written into the plan; handoff prompt + local setup written |
+| Next step | See 'Next steps' below |
 
 ## Spend so far and funding stage
 
@@ -73,3 +73,18 @@ Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan
 - Full-download results: summary table, Yahoo-missing count, SEC-missing count.
 - Optional: confirm the 2016-03-01 CSX added / KLAC removed change.
 - `ANTHROPIC_API_KEY` is still empty in the laptop `.env` (not needed until Phase 3).
+
+## Next steps (in order)
+
+1. **Phase 2 manual checks** (user, laptop): `git pull`, `pip install -r requirements.txt`, `pytest -q`
+   (225 passed), `python -m quantagents.data.etl`, leak tests, `python -m quantagents.data.gateway
+   --as-of 2016-03-01 --show universe` / `--show sectors`, `python scripts\data_report.py`.
+2. **From the data report:** fill `reference/adr_ratios.csv` for 20-F/40-F filers (section 3);
+   fix ticker-reuse findings (section 2); check the derived index vs QQQ (section 4).
+3. **Phase 2 follow-ups:** ADX(14) + RVOL(20) indicators (D36) with tests; then close Phase 2.
+4. **Delisted prices (D26):** waiting on WRDS (UT Dallas) or a paid vendor (Norgate). When the file
+   arrives, write the importer to match it exactly (`docs/wrds_export_guide.md`).
+5. **Phase 3:** LLM layer (client wrapper, response cache, cost ledger with key and stage budgets,
+   80% stops) and 5 research memos on Haiku. Read the Claude API docs first. Needs the user's
+   personal key in `.env` (`ANTHROPIC_API_KEY` is still empty on the laptop).
+6. Phase 4 (constraints, optimizer, backtest engine), then Phase 5 incl. D32-D35, Stage 0 gate.

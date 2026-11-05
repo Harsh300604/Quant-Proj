@@ -3,80 +3,101 @@
 This file lets a new Claude Code chat pick up the build if the current session is lost (credit limit, disconnect).
 It is different from `docs/handoff.md`, which is the **final** handoff document for the mentor, written in Phase 9.
 
-_Last updated: 2026-11-06 (Phase 2 built)._
+_Last updated: 2026-11-06 (handover to a new dev chat; review suggestions adopted)._
 
 ---
 
 ## 1. Prompt to paste into a new dev chat
 
-Copy everything inside the box below into the new chat:
+Use this in a **local** Claude Code session started inside `D:\CreatED-Quant\quantagents` (recommended, see section 1a), or in a new cloud session on the same GitHub repo. Copy everything inside the box:
 
 ```text
-You are the lead developer for QuantAgents, continuing a build that a previous Claude Code chat
-started. I am the developer and future mentor of this project; I test every phase myself on my
-Windows laptop. Keep explanations plain.
+You are the lead developer for QuantAgents, taking over a build that a previous Claude Code chat
+started. I am the developer and future mentor of this project. I test every phase myself; keep
+explanations plain and give me copy-paste PowerShell commands with expected output.
 
-REPOSITORY
-- github.com/Harsh300604/Quant-Proj, branch `claude/nifty-albattani-era22n`.
-  Fetch and check out that branch; commit and push only to it. Do not open pull requests.
+REPOSITORY AND BRANCH
+- Repo: github.com/Harsh300604/Quant-Proj, branch `claude/nifty-albattani-era22n`
+  (local copy: D:\CreatED-Quant\quantagents). Commit and push only to this branch. No pull requests.
 
 READ FIRST, IN THIS ORDER (before doing anything else)
-1. memory.md                 - current state: phase, what's done, spend, open questions, next step
-2. handoff.md                - working method, rules, mentoring plan (this file)
-3. implementation_plan.md    - the approved phase plan; ticked boxes = done; "Funding stages" section
-4. decisions.md              - every decision (D1...), deviation from the brief, and known issue
-5. PROJECT_BRIEF.md          - the full specification (single source of truth)
-6. HANDOFF_REQUIREMENTS.md   - what the final documentation phase must produce
-7. DEV_CHAT_PROMPT.md        - my original working rules (all still apply)
-Then skim the code: quantagents/ (config.py, paths.py, env_secrets.py, data/companies.py,
-data/download/*, data/calendar.py, data/etl.py, data/gateway.py, data/quality.py), configs/,
-reference/, tests/ (tests/fixtures/synthetic_store.py is the point-in-time test world). Run the test suite (pytest -q) to confirm it passes.
+1. memory.md                      - current state, open items, exact next steps
+2. handoff.md                     - working method, rules, mentoring plan
+3. implementation_plan.md         - approved phases; ticked = done; "Funding stages"; the
+                                    "Additions adopted from the client materials review" section
+4. decisions.md                   - decisions D1-D37, deviations from the brief, known issues
+5. PROJECT_BRIEF.md               - the specification (single source of truth, with the
+                                    deviations recorded in decisions.md)
+6. HANDOFF_REQUIREMENTS.md        - final documentation phase (docs/mentoring.md = 16 x 60 min)
+7. DEV_CHAT_PROMPT.md             - my original working rules (all still apply)
+8. docs/client_materials_review.md - what the QuantAgents paper does and what we adopted
+Then skim the code: quantagents/config.py, paths.py, env_secrets.py, data/companies.py,
+data/download/*, data/calendar.py, data/etl.py, data/gateway.py, data/quality.py; configs/;
+reference/; tests/ (tests/fixtures/synthetic_store.py is the point-in-time test world).
+Run `pytest -q` and confirm it passes before changing anything.
 
 WHERE THINGS RUN
-- This cloud session writes code and runs tests on synthetic/recorded data only. Data websites
-  (Yahoo, SEC, Alpaca, Wikipedia, FRED, French library) are blocked here; never try to download
-  real data in the cloud. Real downloads, the DuckDB build, all API calls and all backtests run on
-  my laptop under D:\CreatED-Quant\ (repo: D:\CreatED-Quant\quantagents, data/caches/runs:
-  D:\CreatED-Quant\qa_store). The C: drive must never be used. Python 3.12 on the laptop.
-- Every PowerShell session on the laptop starts with:
-  cd D:\CreatED-Quant\quantagents; Set-ExecutionPolicy -Scope Process Bypass -Force; . .\scripts\env.ps1
+- Everything on my laptop lives on D: (C: is nearly full). Every PowerShell session starts with:
+    cd D:\CreatED-Quant\quantagents
+    Set-ExecutionPolicy -Scope Process Bypass -Force; . .\scripts\env.ps1
+  (activates .venv; caches and TEMP go to D:\CreatED-Quant\qa_store). Python 3.12.
+- Data store: D:\CreatED-Quant\qa_store\quantagents.duckdb, built by `python -m quantagents.data.etl`.
+  Pipeline code reads data ONLY through quantagents/data/gateway.py (company level, D27).
+- If you are a cloud session: data websites are blocked there; write code and tests on the
+  synthetic store and give me the commands to run on the laptop.
+- If you are a local session: you may run tests and scripts, but ASK before any download that
+  is larger than a pilot, and before ANY Anthropic API call. Never print, copy or commit .env.
 
 HOW TO WORK
-- Reply first with a 5-line summary of where the project stands (from memory.md) and what you
-  will do next. Do not redo finished work.
-- Never re-open the decisions in PROJECT_BRIEF.md section 4 or in decisions.md. If something is
-  ambiguous or missing, ask me rather than guess.
-- One phase at a time. When a phase (or work block) is done: run its tests, tick the tasks in
-  implementation_plan.md, update memory.md, decisions.md and (if the method changes) handoff.md,
-  commit and push, then stop and give me: what was built, test results, copy-paste PowerShell
-  manual checks with the expected output and what counts as pass/fail, and anything I must provide.
-  Wait for my confirmation before the next phase.
-- Point-in-time correctness comes first. All pipeline data access goes through the gateway; leak
-  tests must pass before any backtest. Scraped web sources: only content saved on or before each
-  date (decision D21 - Wikipedia renders old pages with TODAY's templates).
-- LLMs never do maths. Validate every LLM output against a schema.
+- First reply: a 5-line summary of where the project stands (from memory.md) and your next step.
+- Never re-open the brief's section 4 decisions or decisions.md. Ask me when unsure; do not guess.
+- One phase (or work block) at a time: build, run its tests, tick implementation_plan.md, update
+  memory.md and decisions.md (and handoff.md if the method changes), commit and push, then stop and
+  give me: what was built, test results, manual checks (commands, expected output, pass/fail),
+  anything I must provide. Wait for my confirmation before the next phase.
+- Point-in-time correctness first: leak tests must pass before any backtest; scraped sources use
+  only content saved on or before each date (D21); new tests should follow the pattern in
+  tests/test_gateway_leaks.py ("nothing after as_of influences results").
+- LLMs never do maths; Python computes everything (weights, returns, backtests for Bob's simulated
+  trading, risk stats). Every LLM output is validated against a pydantic schema.
 
-API AND MONEY RULES
-- Official `anthropic` SDK only, through one wrapper (quantagents/llm/client.py). Exact model IDs:
-  claude-haiku-5-5 (memos, and everything on the dev tier), claude-sonnet-5-5 (committee, paper tier).
-  Never send temperature, top_p or top_k. Never force tool_choice. Use structured outputs, prompt
-  caching, the SQLite response cache (keyed WITHOUT the API key) and the cost ledger from the start.
-  Read the Claude API skill/documentation before writing API code; do not guess SDK signatures.
-- Funding stages (implementation_plan.md, decision D22): never ask for money ahead of evidence.
-  Stage 0 = my personal key, Rs 300 (budget $3.00, automatic stop at $2.40), Haiku only, small
-  slices. Stage 1 = student key ~$20 (Sonnet pilot, thinking on/off decision, first baseline slice).
-  Stage 2 = ~$80-90 (full 2015-2023 runs) after a +/-20% forecast I approve. Contingency up to
-  $150 total only with my explicit approval. At each gate give the gate checklist (built, evidence,
-  spend vs. stage budget, next forecast in docs/cost_forecast.md, exact amount to request).
-- Before any step that calls the API beyond a few test calls, give me the estimated cost (USD and
-  INR) and wait for my go-ahead. Never run a full backtest to debug.
-- Keys only in .env (never printed, logged or committed); key_label and stage in config.
+API AND MONEY
+- Official `anthropic` SDK only, via one wrapper quantagents/llm/client.py (Phase 3). Model IDs:
+  claude-haiku-5-5 (memos; everything on the dev tier) and claude-sonnet-5-5 (committee, paper tier).
+  Never send temperature, top_p or top_k; never force tool_choice. Structured outputs, prompt
+  caching, SQLite response cache keyed WITHOUT the API key, cost ledger with per-key and
+  per-stage budgets (configs/keys.yaml, configs/stages.yaml). Read the Claude API docs/skill
+  before writing API code; do not guess SDK signatures.
+- Funding stages (D22): Stage 0 = my personal key, Rs 300 (budget $3.00, auto-stop $2.40), Haiku
+  only. Stage 1 (student key ~$20) and Stage 2 (~$80-90) only after a gate checklist and my approval.
+  Before any API step beyond a few test calls: give the estimated cost in USD and INR and wait.
 
 MENTORING (FINAL PHASE)
-- After the build, I mentor a student over 16 sessions of 60 minutes: the student re-develops the
-  project step by step with the finished repo as the reference. docs/mentoring.md is written at the
-  end (Phase 9), detailed and structured, per handoff.md section 5.
+- After the build, I mentor a student over 16 sessions of 60 minutes; the student re-develops the
+  project with the finished repo as the reference. docs/mentoring.md is written at the end.
+
+START WITH the "Next steps" list in memory.md.
 ```
+
+## 1a. Setting up a local dev chat (on the laptop)
+
+A local Claude Code session works directly in `D:\CreatED-Quant\quantagents`: it can run the tests, the ETL and the reports itself, so there's no copy-paste loop.
+
+1. Install Claude Code on Windows from the official instructions: https://code.claude.com/docs/en/setup (or use the **Code** tab of the Claude desktop app). The program itself and its settings folder are small and live in your user profile on C:; that's the only C: footprint. All project files, caches and temp files stay on D: because you start it from a prepared PowerShell window (step 3).
+2. Make sure the laptop copy is up to date:
+   ```powershell
+   cd D:\CreatED-Quant\quantagents
+   git checkout claude/nifty-albattani-era22n
+   git pull
+   ```
+3. Start it from a prepared window, so TEMP and caches point to D::
+   ```powershell
+   cd D:\CreatED-Quant\quantagents
+   Set-ExecutionPolicy -Scope Process Bypass -Force; . .\scripts\env.ps1
+   claude
+   ```
+4. Paste the prompt from section 1.
+5. When it asks for permission to run commands, allow tests and scripts; say no to anything that would read or print `.env`, and approve API calls only after it has told you the cost.
 
 ---
 
@@ -186,6 +207,7 @@ At the end of every phase or work block, before pushing:
 | `README.md` | Windows quick start and key swap checklist |
 | `quantagents/` | Python package: `config.py`, `paths.py`, `env_secrets.py`, `logs.py`, `data/companies.py`, `data/download/*` |
 | `docs/wrds_export_guide.md` | How the student exports delisted-company prices from WRDS/CRSP |
+| `docs/client_materials_review.md` | What the QuantAgents paper does; adopted additions D32-D37 |
 | `scripts/coverage_quick.py` | Members without price data, per month |
 | `scripts/build_client_requirements.js` | Regenerates the client requirements docx |
 | `configs/`, `scripts/`, `tests/`, `reference/` | Config, helper scripts, tests, reference CSVs |

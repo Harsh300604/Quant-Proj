@@ -280,6 +280,8 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 - [x] Gateway with the `as_of` audit and `freeze_at` guard
 - [x] Coverage report, ticker-reuse check, foreign-filer list, derived index vs QQQ
 - [ ] Importer for the WRDS/CRSP (or vendor) file of delisted companies, written when the file exists (D26); until then `manual_prices\<TICKER>.csv` files are already read
+- [ ] Add ADX(14) and relative volume RVOL(20) to `compute_indicators` (D36), blanked until the full window, with a test in `tests/test_indicators_pit.py`
+- [ ] Fill `reference/adr_ratios.csv` and fix any ticker-reuse findings from the data report
 - [ ] **Your manual checks below**
 
 **Automated tests (225 passing; synthetic store in `tests/fixtures/synthetic_store.py` with a split, dividends, a restatement, an after-close filing, news around the close/DST/weekend/early close, a removal and an addition, a two-class company):**
@@ -465,7 +467,10 @@ Before writing this phase I read the Claude API reference (skill) for the exact 
   - optimizer node.
 - `quantagents/agents/selection.py`: deterministic selection of at most 20 names, at most 3 per sector, ranked by the memo's signal strength
 - `quantagents/agents/summaries.py`: compact summaries (~400 tokens) for selected names and one-liners for the rest, built by Python from memo fields
-- `quantagents/agents/prompts/emily_v1.txt`, `bob_v1.txt`, `dave_v1.txt`, `otto_baseline_v1.txt`
+- `quantagents/agents/prompts/emily_v1.txt`, `bob_v1.txt`, `dave_v1.txt`, `otto_baseline_v1.txt`: start from the paper's agent profiles (D35): Emily = market news & fundamentals analyst, Bob = quantitative & simulated-trading analyst, Dave = risk control analyst, Otto = manager
+- `quantagents/agents/sim_trading.py` (D32): Python backtests a fixed strategy pool (12-1 momentum, 1-month reversal, low volatility, quality, index hold) over the trailing 12 months via the gateway; compact results table for Bob
+- `quantagents/portfolio/risk_stats.py` (D33): beta, liquidity ratio, max active sector exposure, volatility, paper's R-score (weights in config) for Dave
+- `quantagents/agents/track_record.py` (D34): the committee's own views made 3+ months before t with realised 3-month excess returns (only fully known outcomes)
 - `quantagents/agents/transcript.py`: one markdown transcript per rebalance
 - `quantagents/eval/quick_report.py`: first tearsheet (quantstats) vs. QQQ
 - `quantagents/eval/red_flags.py`: every check in brief §9 (moved here from Phase 6, because the Stage 0 gate needs it)
@@ -480,6 +485,7 @@ Before writing this phase I read the Claude API reference (skill) for the exact 
 - [ ] Transcripts
 - [ ] Wire the graph into the engine as a strategy
 - [ ] 5-stock × 3-month pilot on the `dev` tier
+- [ ] Simulated trading pool for Bob (D32), risk stats for Dave (D33), track-record memory (D34), all point-in-time via the gateway and identical for both variants
 - [ ] Red-flag checks
 - [ ] Small-slice proof on the personal key: 20 stocks × 12 months, dev tier (≈ $0.35; asked first)
 - [ ] Cost forecast v1 (`docs/cost_forecast.md`)
@@ -492,6 +498,7 @@ Before writing this phase I read the Claude API reference (skill) for the exact 
 - `test_transcript.py`: the transcript has every meeting's inputs and outputs
 - `test_red_flags.py`: each flag fires on a planted bad case and stays silent on a clean one
 - `test_cost_forecast.py`: forecast maths from a synthetic ledger (per rebalance → full run, ±20%, cache effect, INR)
+- `test_sim_trading.py`, `test_risk_stats.py`, `test_track_record.py`: identical results when later data is removed (point-in-time); deterministic; the track record never includes a view whose 3-month outcome ends after t
 
 **Manual checks:**
 
@@ -538,7 +545,8 @@ Before writing this phase I read the Claude API reference (skill) for the exact 
   - max drawdown, Calmar;
   - tracking error, information ratio, active return;
   - turnover, cost drag;
-  - sub-periods;
+  - **Entropy (ENT) and Effective Number of Bets (ENB)** as in the paper (D36);
+  - sub-periods, including **2021-2023** for comparison with the paper's Table 2;
   - bootstrap confidence intervals.
 - `quantagents/eval/factors.py`: Carhart 4-factor regression (alpha with t-stat, loadings), with Newey-West standard errors
 - `quantagents/eval/red_flags.py`: extended with the geography and missing-weight checks
@@ -680,6 +688,7 @@ If Stage 2 funding has not been released by then, the MVP is shown on the small-
 
 **Tasks:**
 - [ ] Figures and table generated from the final runs only
+- [ ] Positioning box (D37): our point-in-time and names-hidden controls vs the paper's acknowledged leakage risk; our 2021-2023 numbers next to the paper's Table 2, clearly labelled as different setups
 - [ ] Sample transcript chosen and lightly formatted (content unchanged)
 - [ ] README with the key swap checklist (the checklist itself is written in Phase 3 and kept up to date)
 - [ ] Poster rules applied once you share them (open decision 5)
@@ -765,3 +774,21 @@ python scripts\build_poster_assets.py
 The Sonnet thinking pilot is not on this key: it's Stage 1 (student key). See Funding stages.
 
 If measured costs come in higher, I'll shrink the slices (fewer stocks or months) before touching the stop.
+
+---
+
+## Additions adopted from the client materials review (6 Nov 2026)
+
+See `docs/client_materials_review.md` and decisions D32-D37.
+
+| Item | Phase | Decision |
+|---|---|---|
+| ADX(14) and RVOL(20) indicators | 2 (follow-up) | D36 |
+| Paper-based personas (Emily = market news & fundamentals, Bob = quantitative & simulated-trading) | 5 | D35 |
+| Python simulated trading for Bob | 5 | D32 |
+| Risk-score inputs for Dave | 5 | D33 |
+| Track-record memory | 5 | D34 |
+| ENT and ENB metrics, 2021-2023 sub-period | 6 | D36 |
+| Poster positioning vs the paper | 8 | D37 |
+
+Cost impact: Bob's table and the track record add about 1-2k input tokens per rebalance (well under $0.01 per rebalance on Sonnet); the forecasts will include them.

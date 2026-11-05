@@ -2,8 +2,7 @@
 
 Files reviewed: the QuantAgents paper (arXiv 2510.04643), its website summary (quantagents.github.io),
 the TradingAgents paper (arXiv 2412.20138), a README ("shared by professor") and the notebook
-`QuantAgents_v17_fixeddata.ipynb`. Nothing here changes the build yet; adoption of the suggestions
-below needs the user's approval.
+`QuantAgents_v17_fixeddata.ipynb`. All seven suggestions below were adopted by the user on 6 Nov 2026 (D32-D37).
 
 ## What the QuantAgents paper actually does
 
@@ -21,7 +20,7 @@ below needs the user's approval.
 | Cost | ~$180 over 3 years (weekly, GPT-4o) | Planned ~$60-90 for three 9-year monthly runs |
 | Own limitation | "backtesting may be affected by potential LLM information leakage" | Our names-hidden run and point-in-time gateway target exactly this |
 
-## Suggestions (not adopted yet)
+## Suggestions (all adopted 6 Nov 2026: decisions D32-D37)
 
 1. **Add ENT and ENB, plus a 2021-2023 sub-period**, so our table can sit next to the paper's Table 2. No API cost.
 2. **Python "simulated trading" for Bob**: each rebalance, Python backtests a small fixed pool of rule-based strategies (e.g. momentum, reversal, low volatility, quality) on data before t via the gateway; Bob gets the computed results. Closer to the paper's method; respects "LLMs never do maths". Small token cost.
