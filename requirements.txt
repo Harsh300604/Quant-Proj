@@ -16,6 +16,13 @@ tzdata==2026.6
 pandas-ta==0.4.71b0
 numba==0.61.2
 llvmlite==0.44.0
+# Phase 2 (data store, trading calendar)
+duckdb==2.0.0
+pandas_market_calendars==5.6.0
+exchange_calendars==4.13.2
+pyluach==2.3.0
+toolz==1.2.0
+korean_lunar_calendar==0.4.0
 # Tests
 pytest==9.2.0
 responses==0.26.3

@@ -1,0 +1,5 @@
+# Depositary-share ratios for foreign companies listed as ADRs/ADSs. SEC filings report shares
+# in ORDINARY shares; the Yahoo price is per ADS. market cap = price x (ordinary shares / ordinary_per_ads).
+# Fill from the depositary bank's page or the company's 20-F cover. The data report lists
+# 20-F/40-F filers whose ratio is still missing.
+company_id,ordinary_per_ads,valid_from,note

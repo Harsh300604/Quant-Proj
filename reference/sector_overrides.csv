@@ -1,0 +1,17 @@
+# Company-level sector corrections where the SIC code maps to the wrong GICS-like sector
+# (GICS as used 2018-2022). company_id as in derived/company_map.csv.
+company_id,sector,note
+GOOGL,Communication Services,"Alphabet: SIC 7370, GICS Communication Services since 2018"
+FB,Communication Services,"Meta/Facebook: SIC 7370"
+BIDU,Communication Services,"Baidu: SIC 7370"
+NTES,Communication Services,"NetEase: games"
+ATVI,Communication Services,"Activision Blizzard: games"
+EA,Communication Services,"Electronic Arts: games"
+TTWO,Communication Services,"Take-Two: games"
+MTCH,Communication Services,"Match Group"
+DLTR,Consumer Discretionary,"Dollar Tree (Consumer Discretionary under GICS until 2023)"
+CTAS,Industrials,"Cintas: uniforms/business services (SIC 2320)"
+PCAR,Industrials,"PACCAR: trucks (SIC 3711)"
+FAST,Industrials,"Fastenal: industrial distribution (SIC 5200)"
+CPRT,Industrials,"Copart: vehicle auctions"
+PYPL,Information Technology,"PayPal (IT under GICS until 2023)"

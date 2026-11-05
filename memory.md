@@ -3,18 +3,18 @@
 Short, factual and always up to date. Update it at the end of every phase or work block, before pushing.
 History belongs in `decisions.md`; the plan lives in `implementation_plan.md`.
 
-_Last updated: 2026-11-06 (Phase 1 closed; Phase 2 started)._
+_Last updated: 2026-11-06 (Phase 2 built; waiting for manual checks)._
 
 ## Where we are
 
 | Item | State |
 |---|---|
 | Plan | `implementation_plan.md`, approved 2026-11-04 |
-| Current phase | **Phase 2: data store, point-in-time gateway, leak tests.** In progress (cloud build) |
+| Current phase | **Phase 2** built (DuckDB ETL, calendar, gateway, leak tests, weights, indicators, data report); 225 tests pass; **waiting for the user's manual checks** |
 | Phases done | **Phase 1** (closed 6 Nov; open item: 42 delisted-ticker prices, D26) |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | Phase 1 closed by the user |
-| Next step | Build Phase 2 (DuckDB ETL, calendar, gateway + leak tests, company-level weights, sectors, indicators, coverage/ticker-reuse report, derived-index check) -> tests -> manual checks -> stop |
+| Last step | Phase 2 code + tests pushed. Leak test caught pandas-ta warm-up values (fixed: D30) and a short-history crash |
+| Next step | User: `pip install -r requirements.txt`, `pytest -q`, `python -m quantagents.data.etl`, gateway CLI, `python scripts\\data_report.py`; paste the report. Then fill ADR ratios / fix ticker-reuse findings, close Phase 2 |
 
 ## Spend so far and funding stage
 
@@ -55,6 +55,7 @@ Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan
 ## Phase 1 facts a new chat needs
 
 - Company level (D27): `derived/company_map.csv` (ticker → company_id), company spells `derived/ndx_membership_companies.csv`; ticker-level files kept for downloads. SEC name lookup (D28): `raw/edgar/cik_matches.csv`.
+- Phase 2: store = `qa_store/quantagents.duckdb` built by `python -m quantagents.data.etl`; access ONLY via `quantagents.data.gateway.Gateway` (company level). Rules in the plan's Phase 2 'Availability rules' table and D29-D31.
 - Python 3.12 is required (D15). Package: `quantagents/` with an editable install (`pip install -e .`).
 - Downloads: `python -m quantagents.data.download.run_all --pilot | --all`. Raw files go to `<storage>/raw/...` with `manifest.jsonl`. Membership spells go to `<storage>/derived/ndx_membership.csv`.
 - Hand-maintained corrections live in `reference/*.csv`.

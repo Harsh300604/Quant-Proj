@@ -1,0 +1,52 @@
+# SEC industry code (SIC) ranges -> 11 GICS-like sectors (decision D7). An APPROXIMATION of GICS
+# (as used 2018-2022), not a GICS licence. The narrowest matching range wins.
+# Company-specific corrections go in reference/sector_overrides.csv.
+sic_from,sic_to,sector
+100,999,Consumer Staples
+1000,1499,Materials
+1300,1399,Energy
+1500,1799,Industrials
+2000,2199,Consumer Staples
+2200,2399,Consumer Discretionary
+2400,2499,Materials
+2500,2599,Consumer Discretionary
+2600,2699,Materials
+2700,2799,Communication Services
+2800,2829,Materials
+2830,2836,Health Care
+2840,2844,Consumer Staples
+2850,2899,Materials
+2900,2999,Energy
+3000,3399,Materials
+3400,3569,Industrials
+3559,3559,Information Technology
+3570,3579,Information Technology
+3580,3599,Industrials
+3600,3699,Information Technology
+3700,3799,Industrials
+3710,3716,Consumer Discretionary
+3800,3839,Information Technology
+3812,3812,Industrials
+3826,3826,Health Care
+3840,3851,Health Care
+3860,3999,Consumer Discretionary
+4000,4799,Industrials
+4720,4729,Consumer Discretionary
+4800,4899,Communication Services
+4900,4999,Utilities
+5000,5199,Industrials
+5120,5129,Health Care
+5200,5999,Consumer Discretionary
+5400,5499,Consumer Staples
+5330,5331,Consumer Staples
+5900,5912,Consumer Staples
+6000,6799,Financials
+6798,6798,Real Estate
+7000,7299,Consumer Discretionary
+7300,7399,Industrials
+7370,7379,Information Technology
+7800,7899,Communication Services
+7900,7999,Consumer Discretionary
+8000,8099,Health Care
+8700,8999,Industrials
+8731,8731,Health Care

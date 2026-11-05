@@ -3,7 +3,7 @@
 This file lets a new Claude Code chat pick up the build if the current session is lost (credit limit, disconnect).
 It is different from `docs/handoff.md`, which is the **final** handoff document for the mentor, written in Phase 9.
 
-_Last updated: 2026-11-06 (company level, SEC name lookup, delisted-price plan)._
+_Last updated: 2026-11-06 (Phase 2 built)._
 
 ---
 
@@ -29,7 +29,8 @@ READ FIRST, IN THIS ORDER (before doing anything else)
 6. HANDOFF_REQUIREMENTS.md   - what the final documentation phase must produce
 7. DEV_CHAT_PROMPT.md        - my original working rules (all still apply)
 Then skim the code: quantagents/ (config.py, paths.py, env_secrets.py, data/companies.py,
-data/download/*), configs/, reference/, tests/. Run the test suite (pytest -q) to confirm it passes.
+data/download/*, data/calendar.py, data/etl.py, data/gateway.py, data/quality.py), configs/,
+reference/, tests/ (tests/fixtures/synthetic_store.py is the point-in-time test world). Run the test suite (pytest -q) to confirm it passes.
 
 WHERE THINGS RUN
 - This cloud session writes code and runs tests on synthetic/recorded data only. Data websites

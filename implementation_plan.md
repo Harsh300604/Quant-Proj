@@ -247,77 +247,85 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 
 ## Phase 2: Data store, point-in-time gateway and leak tests (week 2)
 
-**Goal:** one versioned DuckDB file and one gateway that can never return future data.
+**Status:** built and tested in the cloud session on 6 Nov 2026 (225 automated tests pass, including the leak tests). **Waiting for your manual checks on the laptop.**
+
+**Goal:** one versioned DuckDB file and one gateway that can never return future data, at company level (D27).
 
 **Files:**
-- `quantagents/data/etl.py`: raw files → DuckDB `D:\CreatED-Quant\qa_store\quantagents.duckdb`, with a manifest table (source, download date, rows, checksums)
-- `quantagents/data/calendar.py`: NYSE trading days and the 4 pm ET close in UTC, daylight saving handled (`pandas_market_calendars`)
-- `quantagents/data/indicators.py`: pandas-ta indicators (RSI, MACD, SMA/EMA 20/50/200, ATR, Bollinger, momentum 1/3/6/12-1)
-- `quantagents/data/weights.py`: derived index weights at **company level** (D27: a company's weight = sum of its share classes), sector and country weights
-- `quantagents/data/manual_import.py`: importer for the WRDS/CRSP (or vendor) file of delisted companies, written to match the actual file
-- `quantagents/data/gateway.py`: `get_universe`, `get_index_weights`, `get_prices`, `get_indicators`, `get_fundamentals`, `get_news`; each logs its `as_of` date for the red-flag check
-- `reference/sic_to_sector.csv`
-- `scripts/data_report.py`: coverage report (missing prices, non-US filers, news counts, % of index weight missing per date)
+- `quantagents/data/calendar.py`: NYSE trading days and actual closes in UTC (daylight saving and 1 pm early closes handled, `pandas_market_calendars`); rebalance dates (D9); naive timestamps rejected
+- `quantagents/data/etl.py`: raw files → `D:\CreatED-Quant\qa_store\quantagents.duckdb`. Every table has `available_utc`. Tables: `company_map`, `companies` (name, CIK, SIC, sector, country, annual form, ADR ratio), `membership_ticker`, `membership_company`, `ticker_cik`, `prices`, `company_price_ticker`, `benchmarks` (QQQ, ^NDX), `fundamentals` (12 metrics, US-GAAP and IFRS), `shares`, `filings`, `news`, `indicators`, `index_weights`, `factors_daily`, `factors_monthly`, `riskfree`, `build_manifest`
+- `quantagents/data/gateway.py`: `get_universe`, `get_index_weights`, `get_prices`, `get_indicators`, `get_fundamentals`, `get_news`, `get_benchmark`, `get_riskfree`; every call recorded; `freeze_at` makes any later `as_of` an error; CLI for looking at a date
+- `quantagents/data/quality.py` + `scripts/data_report.py`: coverage per rebalance, ticker-reuse check, foreign filers without an ADR ratio, derived index vs QQQ
+- `reference/sic_to_sector.csv`, `reference/sector_overrides.csv`, `reference/adr_ratios.csv`
+- (Indicators and weights live inside `etl.py`; the planned separate `indicators.py`/`weights.py` were not needed.)
 
-**Availability timestamps (all stored in UTC):**
+**Availability rules (all UTC):**
 
 | Data | Available from |
 |---|---|
-| Daily price bar | That day's 4 pm ET close |
-| Filing | EDGAR acceptance time |
-| News | Publish time; if after 4 pm ET, from the next trading day's close |
-| Membership | The effective date (from the start of that trading day) |
-
-Indicators are computed only from bars that are already available.
+| Daily price bar, indicators, index weights | That day's actual close (16:00 ET, or 13:00 ET on early-close days) |
+| News | Its publish time; a decision at a close sees news up to that close, so after-close news counts from the next trading day |
+| SEC fact, shares outstanding | EDGAR acceptance time, **read as US Eastern** although printed with a "Z" (D29: the later, safer reading); without one, 00:00 ET the day after the filing date |
+| Restated figures | Only from the filing that restated them (each period's value comes from the latest filing known at `as_of`) |
+| Membership | The snapshot time it was observed |
+| T-bill rate | The close of the next trading day after its date |
 
 **Tasks:**
-- [ ] ETL into DuckDB tables: `prices_raw`, `prices_adj`, `news`, `fundamentals`, `shares_out`, `membership`, `company_info`, `factors`, `riskfree`, `manifest`
-- [ ] Trading calendar and timezone helpers
-- [ ] Indicators, computed per ticker on adjusted prices
-- [ ] Derived index weights, sector map, country map
-- [ ] Gateway, with an `as_of` audit log
-- [ ] Coverage report
-- [ ] Derived-index check: daily return of our cap-weighted index vs. QQQ, with tracking error per year
-- [ ] Ticker-reuse check: each price series must cover the ticker's membership period (flags e.g. a reused ticker that now belongs to another company)
-- [ ] Use `raw/edgar/ticker_ciks.csv` (ticker → CIK) for fundamentals and shares outstanding
+- [x] Trading calendar and timezone helpers
+- [x] ETL into DuckDB (tables above), with a build manifest (row counts, raw-manifest checksum)
+- [x] Prices: total return `ret` (close-to-close incl. dividends), `raw_close` (actual traded price: Yahoo's split-adjusted close × later split factors) for market caps
+- [x] Indicators per company, **scale-free only** (RSI, MACD histogram %, close vs SMA/EMA 20/50/200, ATR %, Bollinger width/position, momentum 1/3/6/12-1 from total returns), blank until each has its full window (D30)
+- [x] Company-level index weights: actual price × total shares of all classes known by that close (÷ ADR ratio where known); members only; sum to 1
+- [x] Sector from SIC (11 GICS-like sectors) + overrides; country = US / non-US from the EDGAR business address (D7, D8)
+- [x] Gateway with the `as_of` audit and `freeze_at` guard
+- [x] Coverage report, ticker-reuse check, foreign-filer list, derived index vs QQQ
+- [ ] Importer for the WRDS/CRSP (or vendor) file of delisted companies, written when the file exists (D26); until then `manual_prices\<TICKER>.csv` files are already read
+- [ ] **Your manual checks below**
 
-**Automated tests (leak tests are mandatory):**
-- `test_gateway_leaks.py`: for many random `as_of` dates, no function returns a row with an availability time after `as_of`
-- `test_timezones.py`:
-  - news at 3:59 pm ET is included that day; 4:01 pm ET is not;
-  - both daylight-saving switch days;
-  - a UTC timestamp just after midnight that is still the previous day in ET;
-  - a weekend publish counts from the next trading day.
-- `test_filing_dates.py`: a 10-K is invisible before its acceptance time even if its period ended months earlier
-- `test_membership_pit.py`: a company that later left the index is present before its removal date and absent after
-- `test_indicators_pit.py`: an indicator on date t is identical whether computed with data up to t or with data up to 2023 (proves no future bars leak in)
-- `test_weights.py`: weights sum to 1 on each date and use only shares data known at the time
+**Automated tests (225 passing; synthetic store in `tests/fixtures/synthetic_store.py` with a split, dividends, a restatement, an after-close filing, news around the close/DST/weekend/early close, a removal and an addition, a two-class company):**
+- `test_gateway_leaks.py`: no row after `as_of` from any function (40 random times incl. weekends); universe only has members at `as_of`; **"nothing after `as_of` influences results"**: the store rebuilt as if today were `as_of` gives identical answers for every function; `freeze_at` blocks later calls; naive times rejected
+- `test_timezones.py`: 15:59 vs 16:01 ET; DST switch day; 00:30 UTC still the previous evening in New York; weekend; 1 pm early close
+- `test_filing_dates.py`: acceptance clock read as ET; a filing accepted after the close is invisible that day; nothing visible at the period end; a restatement is invisible until filed
+- `test_membership_pit.py`: removed company present before and absent after; added company absent before even though prices exist; share classes are one company
+- `test_indicators_pit.py`: value on t identical with data up to t or the full history; scale-free; blank until the full window; short histories don't crash
+- `test_weights.py`: weights sum to 1 over members; no weight before the first shares filing; market cap continuous across a split; share classes summed; total return includes dividends
+- `test_calendar.py`, `test_quality.py` (incl. the report script and the gateway CLI)
 
-**Manual checks:**
+**Manual checks (on your laptop):**
 
-1. Build the data store:
+1. Update and install the new packages (DuckDB, trading calendar):
    ```powershell
-   python -m quantagents.data.etl --config configs\base.yaml
+   git pull
+   pip install -r requirements.txt
+   pytest -q
    ```
-   **Pass:** ends with `DuckDB written: D:\CreatED-Quant\qa_store\quantagents.duckdb` and a row-count table.
-2. Run the leak tests:
+   **Pass:** `225 passed`.
+2. Build the data store (a few minutes; ≈ 0.5–2 GB at `D:\CreatED-Quant\qa_store\quantagents.duckdb`):
    ```powershell
-   pytest -q tests\test_gateway_leaks.py tests\test_timezones.py
+   python -m quantagents.data.etl
+   ```
+   **Pass:** ends with `DuckDB written: D:\CreatED-Quant\qa_store\quantagents.duckdb` and a table of row counts where `prices`, `fundamentals`, `news`, `indicators` and `index_weights` are all well above 0.
+3. Run the leak tests again on their own:
+   ```powershell
+   pytest -q tests\test_gateway_leaks.py tests\test_timezones.py tests\test_filing_dates.py
    ```
    **Pass:** all passed. **Fail:** any failure; nothing else proceeds until these pass.
-3. Coverage report:
-   ```powershell
-   python scripts\data_report.py
-   ```
-   **Pass:** it lists missing tickers with reasons. "Max % of index weight missing on any date" should be under 2%. If it's higher, tell me and we decide (e.g., supply CSVs for the missing tickers).
-4. Look up one date:
+4. Look at one date:
    ```powershell
    python -m quantagents.data.gateway --as-of 2016-03-01 --show universe
    ```
-   **Pass:** about 100–104 tickers, weights summing to 1.000, and the largest weights are names you'd expect for 2016 (e.g., AAPL, MSFT, GOOG/GOOGL, AMZN, FB).
-5. Derived-index check: the report shows yearly tracking error of our derived index vs. QQQ. **Pass:** under about 2% per year, which suggests the derived weights are close. If higher, it becomes a stated limitation in the log.
+   **Pass:** about 100 companies; the largest weights are names you'd expect for 2016 (Apple, Microsoft, Alphabet, Amazon, Facebook); `weights sum to 1.000`.
+   ```powershell
+   python -m quantagents.data.gateway --as-of 2016-03-01 --show sectors
+   ```
+   **Pass:** Information Technology is the largest sector; the US share of weight is roughly 90%+.
+5. Data-quality report:
+   ```powershell
+   python scripts\data_report.py
+   ```
+   **Expected now:** section 1 shows the delisted-price gap (about 30% of members missing prices in 2015, falling to about 6% by 2023) and says **RED FLAG**; that is the open item D26. Section 2 lists any price series that don't cover the index period; section 3 lists foreign filers without an ADR ratio; section 4 shows our derived index vs QQQ by year. Paste the whole output; we'll go through sections 2–4 together (they decide the ADR ratios and any ticker fixes).
 
-**API spend:** $0. **Depends on:** Phase 1 (downloads at least for the pilot tickers).
+**API spend:** $0. **Depends on:** Phase 1.
 
 ---
 
