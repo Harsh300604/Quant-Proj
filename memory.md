@@ -3,18 +3,18 @@
 Short, factual and always up to date. Update it at the end of every phase or work block, before pushing.
 History belongs in `decisions.md`; the plan lives in `implementation_plan.md`.
 
-_Last updated: 2026-11-06 (company level + SEC name lookup built; delisted prices pending)._
+_Last updated: 2026-11-06 (Phase 1 closed; Phase 2 started)._
 
 ## Where we are
 
 | Item | State |
 |---|---|
 | Plan | `implementation_plan.md`, approved 2026-11-04 |
-| Current phase | **Phase 1** (almost closed). Full download done. Open: delisted prices for 43 of 192 tickers (D26: WRDS/CRSP first, else paid); user to run manual check 7 |
-| Phases done | none |
+| Current phase | **Phase 2: data store, point-in-time gateway, leak tests.** In progress (cloud build) |
+| Phases done | **Phase 1** (closed 6 Nov; open item: 42 delisted-ticker prices, D26) |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Last step | SEC complete: 191/192 correct (BATRA = tracking stock, no own filer - accepted); reuse rejections exactly SNDK, VIA, VIP |
-| Next step | Waiting for the user's \"close Phase 1\" (delisted prices open, D26) -> then Phase 2 |
+| Last step | Phase 1 closed by the user |
+| Next step | Build Phase 2 (DuckDB ETL, calendar, gateway + leak tests, company-level weights, sectors, indicators, coverage/ticker-reuse report, derived-index check) -> tests -> manual checks -> stop |
 
 ## Spend so far and funding stage
 

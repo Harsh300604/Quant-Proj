@@ -126,7 +126,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 
 ## Phase 1: Setup, config and downloaders (week 1)
 
-**Status:** checks 1–5 passed on the laptop (5 Nov); check 6 (full download) running. Built and tested in the cloud session on 4 Nov 2026 (103 automated tests pass after the 6 Nov company-level and SEC name-lookup changes). **Waiting for the check 6 results.**
+**Status: CLOSED 6 Nov 2026** (user confirmed). All manual checks passed; one item open and carried forward: delisted-company prices (D26, WRDS/CRSP pending), plugged in later via the Phase 2 importer. Built and tested in the cloud session on 4 Nov 2026 (103 automated tests pass after the 6 Nov company-level and SEC name-lookup changes). 
 
 **Goal:** the repo installs on D:, config loads, secrets are handled safely, and the downloads you run on your laptop have started.
 
@@ -160,11 +160,11 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
   - [x] SEC EDGAR company facts and submissions (acceptance times, SIC code, address); missing CIKs listed
   - [x] SEC lookup by company name for delisted companies (D28) → `raw/edgar/cik_matches.csv`; reused current tickers rejected; every ticker's CIK in `raw/edgar/ticker_ciks.csv` (0 of 192 missing, 6 Nov)
   - [x] Company-level grouping of share classes and renames (D27) → `derived/company_map.csv`, `derived/ndx_membership_companies.csv`
-  - [ ] Delisted prices from WRDS/CRSP or a paid vendor (D26; guide: `docs/wrds_export_guide.md`)
+  - [ ] **OPEN (carried into Phase 2):** delisted prices from WRDS/CRSP or a paid vendor for 42 tickers (D26; guide: `docs/wrds_export_guide.md`)
   - [x] Kenneth French factors (FF3 and momentum, daily and monthly) and FRED `DTB3`
 - [x] `check_env.py`
 - [x] Decisions log and continuity files
-- [ ] **Your manual checks below**
+- [x] **Your manual checks below** (1–7 passed; 8 = delisted prices, open, see D26)
 
 **Automated tests (103 passing):**
 - `test_config.py`: base and pilot load; bad values are rejected; sampling parameters rejected; key budgets ($2.40 stop); funding stages (80% stops, stage/key mismatch, $150 cap)
