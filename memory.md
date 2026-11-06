@@ -5,6 +5,8 @@ History belongs in `decisions.md`; the plan lives in `implementation_plan.md`.
 
 _Last updated: 2026-11-06 (handover point: this chat ends here; a new dev chat continues)._
 
+> **Active track: the 20-stock prototype (proto20).** Approved 6 Nov 2026: the whole project is built first on the 20 largest NASDAQ-100 companies (2021–2023), before the full run. For current work, read these first: `memory_20.md` (state and next steps), `implementation_plan_20.md` (phases P0–P7), `decisions_20.md` (D38–D45) and `handoff_20.md` (laptop prep and the dev-chat prompt). This file and the other original docs stay valid for the general project state and for the full run, which resumes after proto20.
+
 ## Where we are
 
 | Item | State |
@@ -14,7 +16,7 @@ _Last updated: 2026-11-06 (handover point: this chat ends here; a new dev chat c
 | Phases done | **Phase 1** (closed 6 Nov; open item: 42 delisted-ticker prices, D26) |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
 | Last step | Client materials reviewed; all 7 suggestions adopted (D32-D37) and written into the plan; handoff prompt + local setup written |
-| Next step | See 'Next steps' below |
+| Next step | **proto20 track:** see `memory_20.md` → Next steps (P0 first). The list below is the full-run order and resumes after proto20 |
 
 ## Spend so far and funding stage
 
@@ -75,6 +77,8 @@ Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan
 - `ANTHROPIC_API_KEY` is still empty in the laptop `.env` (not needed until Phase 3).
 
 ## Next steps (in order)
+
+_Current work follows `memory_20.md`. proto20's P0–P1 cover steps 1–3 below; steps 4–6 come after proto20, except that the main Phase 3–5 code is built during proto20 P2–P4._
 
 1. **Phase 2 manual checks** (user, laptop): `git pull`, `pip install -r requirements.txt`, `pytest -q`
    (225 passed), `python -m quantagents.data.etl`, leak tests, `python -m quantagents.data.gateway
