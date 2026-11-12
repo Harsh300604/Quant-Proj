@@ -212,6 +212,12 @@ As in **main Phase 3**, unchanged: client wrapper, response cache, cost ledger w
 
 ## P3: Constraints, optimizer and backtest engine
 
+**Status: built 12 Nov 2026, waiting for the user's confirmation.** 374 tests pass; $0 spent.
+- `portfolio/constraints.py`, `portfolio/baseline_opt.py` (exact projection in numpy, D49), `engine/accounting.py` (a pure simulator), `engine/strategies.py`, `engine/backtest.py`.
+- `proto20_hold` (2021–2023): +43.16% vs the same-20 index's +42.84%, tracking error 0.15% a year, total cost 0.14%, 36 rebalances, constraints OK every month. Most of the gap is the first day: we buy at the open on 5 Jan 2021, while the index counts that whole day.
+- `rnd_clean` (random tilts): +34.99%, average turnover 63% a month, cost 2.47% over 3 years, constraints OK every month. Stopping after 10 rebalances and resuming gives an identical NAV.
+- **Bug found and fixed (known issue, 12 Nov):** after a stock split, the share count stayed at the pre-split figure until the next filing, so Alphabet's and Amazon's 2022 20-for-1 splits made their weights 20× too small for weeks. Share counts are now scaled by the splits after their filing date. The same-20 benchmark is now 2021 +33.2%, 2022 −37.6%, 2023 +68.9% (P1 printed +32.7%, −37.0%, +68.9%). The frozen universe is unchanged (`--check` OK).
+
 As in **main Phase 4**, plus:
 - `constraints.py` and `baseline_opt.py` take the **benchmark weight vector as an input**: either the NASDAQ-100 derived weights or the proto20 index. 0×–2× multiples and sector bands are measured against that vector.
 - `engine/backtest.py` reads the universe from `resolve_universe` and the benchmark from config, and writes `universe.csv` and `benchmark_nav.csv` into the run folder.
@@ -226,7 +232,16 @@ As in **main Phase 4**, plus:
 ```powershell
 python -m quantagents.engine.backtest --config configs\proto20.yaml --strategy hold_benchmark --run-id proto20_hold
 ```
-**Pass:** the NAV matches the proto20 index, minus about 10 bps of cost at the start.
+**Pass:** the NAV matches the proto20 index, minus about 10 bps of cost at the start. (Measured: within 0.4 percentage points over 3 years, tracking error 0.15%; the first-day open entry explains most of the gap.)
+
+The exact 1e-8 match is tested where it can hold exactly: constant shares, no dividends, and open = previous close (`tests/test_engine_index_tracker.py`). With real data, dividends reinvested in the stock that paid them and share-count updates between rebalances make a buy-and-hold portfolio drift slightly from the daily cap weights.
+
+Also run:
+```powershell
+python -m quantagents.engine.backtest --config configs\proto20.yaml --strategy random --run-id rnd_check --stop-after 10
+python -m quantagents.engine.backtest --config configs\proto20.yaml --strategy random --run-id rnd_check
+```
+**Pass:** the second command prints `resuming from checkpoint: 10 of 36 rebalances done` and ends with `portfolio: total +34.99%`.
 
 ---
 

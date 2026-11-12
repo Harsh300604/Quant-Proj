@@ -41,10 +41,9 @@ def _prices(seed: int, split_on: str | None = None) -> pd.DataFrame:
                        "adj_close": close, "volume": 1e6, "dividends": 0.0, "splits": 0.0}, index=DAYS)
     df.loc[df.index[::63], "dividends"] = 0.5
     if split_on:
-        # Yahoo style: prices BEFORE the split are divided by 2 (split-adjusted)
+        # Yahoo style: the series is already split-adjusted (continuous); the actual traded price
+        # before the split was 2x the stored close; dividends are adjusted the same way
         before = df.index < pd.Timestamp(split_on)
-        for c in ("open", "high", "low", "close", "adj_close"):
-            df.loc[before, c] = df.loc[before, c] / 2
         df.loc[before, "dividends"] = df.loc[before, "dividends"] / 2
         df.loc[pd.Timestamp(split_on), "splits"] = 2.0
     df.index.name = "date"
@@ -150,7 +149,9 @@ def build_raw_store(root: Path) -> Path:
                 acc_str = "2015-01-28T16:31:00.000Z"
             accns.append(accn); forms.append("10-Q"); dates.append(f"{acc:%Y-%m-%d}"); accepted.append(acc_str)
             quarters.append((qs, qe, 1000.0 + 10 * i, accn))
-            shares.append((qe, [400.0e6, 100.0e6] if t == "GOOGL" else [500.0e6], accn))
+            # AAA splits 2-for-1 on 2015-06-01: filings accepted after it report the doubled count
+            n = 1000.0e6 if (t == "AAA" and acc >= pd.Timestamp("2015-06-01")) else 500.0e6
+            shares.append((qe, [400.0e6, 100.0e6] if t == "GOOGL" else [n], accn))
         if t == "AAA":  # restatement of Q3-2014 in a 10-K accepted 2015-02-20
             accns.append(f"{cik}-k2014"); forms.append("10-K"); dates.append("2015-02-20")
             accepted.append("2015-02-20T09:00:00.000Z")

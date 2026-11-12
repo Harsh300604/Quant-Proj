@@ -414,12 +414,13 @@ _Built 12 Nov 2026 as proto20 P2 (`implementation_plan_20.md`); the manual check
 - `runs/<run_id>/`: weights, trades, daily NAV, checkpoints. These live on D:; the repo only has a link and README.
 
 **Tasks:**
-- [ ] Constraint set and feasibility checks
-- [ ] Baseline projection optimizer
-- [ ] Backtest loop, execution, costs, mark-to-market
-- [ ] Delisting handling
-- [ ] Checkpoint and resume
-- [ ] Test strategies
+_Built 12 Nov 2026 as proto20 P3 (`implementation_plan_20.md`); the full-period `--strategy index` manual check on `base.yaml` waits for the delisted prices (D26)._
+- [x] Constraint set and feasibility checks
+- [x] Baseline projection optimizer (exact, numpy; D49)
+- [x] Backtest loop, execution, costs, mark-to-market
+- [x] Delisting handling
+- [x] Checkpoint and resume
+- [x] Test strategies
 
 **Automated tests:**
 - `test_constraints.py`: output always satisfies all constraints; infeasible inputs give a clear error; with all multipliers at 1 the output equals the index weights

@@ -12,7 +12,7 @@ _Last updated: 2026-11-06 (handover point: this chat ends here; a new dev chat c
 | Item | State |
 |---|---|
 | Plan | `implementation_plan.md`, approved 2026-11-04 |
-| Current phase | **Phase 2** manual checks done 12 Nov by the local dev chat. They found 4 data bugs, now fixed (`decisions.md` known issues, 12 Nov). ADX/RVOL were added in proto20 P1. Still open: ADR ratios for AZN/VIP/VOD (full run) and the delisted-price importer (D26). **Phase 3 (LLM layer) built 12 Nov as proto20 P2** (310 tests; $0.0049 spent on the student key, stage `proto20`) |
+| Current phase | **Phase 2** manual checks done 12 Nov by the local dev chat. They found 4 data bugs, now fixed (`decisions.md` known issues, 12 Nov). ADX/RVOL were added in proto20 P1. Still open: ADR ratios for AZN/VIP/VOD (full run) and the delisted-price importer (D26). **Phase 3 (LLM layer) built 12 Nov as proto20 P2** ($0.0049 spent on the student key, stage `proto20`); **Phase 4 (constraints, optimizer, engine) built as proto20 P3** (374 tests). Split vs share-count bug fixed (`decisions.md`, 12 Nov) |
 | Phases done | **Phase 1** (closed 6 Nov; open item: 42 delisted-ticker prices, D26) |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
 | Last step | Client materials reviewed; all 7 suggestions adopted (D32-D37) and written into the plan; handoff prompt + local setup written |

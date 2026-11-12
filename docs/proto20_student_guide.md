@@ -2,7 +2,7 @@
 
 This guide explains the 20-stock prototype in plain words: what it is, how it works, how we checked it, and how it performs. It is updated at the end of every build phase. Read it alongside your mentoring sessions. By the end you should be able to explain every part in your own words.
 
-_Last updated: 12 Nov 2026 (phase P2: the AI connection and the first memos)._
+_Last updated: 12 Nov 2026 (phase P3: portfolio rules and the trading simulator)._
 
 ---
 
@@ -110,9 +110,11 @@ These 20 companies made up about **75% of the whole NASDAQ-100** on that day. Th
 
 | Year | Our 20-stock benchmark | QQQ (whole NASDAQ-100, for reference) |
 |---|---|---|
-| 2021 | +32.7% | +27.4% |
-| 2022 | −37.0% | −32.6% |
+| 2021 | +33.2% | +27.4% |
+| 2022 | −37.6% | −32.6% |
 | 2023 | +68.9% | +54.9% |
+
+_(Corrected in P3, after the stock-split bug fix described below.)_
 
 The biggest companies rose more than the index in good years and fell more in 2022. Our AI portfolio has to beat the left-hand column, not QQQ.
 
@@ -151,6 +153,33 @@ Both were fixed first. Lesson: always look at what you're about to send to the A
 
 **What we noticed:** all 8 memos said "neutral, low conviction". Our instructions told the junior analyst to be careful, and it was. The real decisions are made by the committee in P4, and we'll watch whether this caution carries through.
 
+### P3: the rules of the portfolio and the trading simulator (12 Nov 2026)
+
+**The rules (constraints).** Whatever the AI suggests, the final portfolio must:
+- keep each stock between 0× and 2× its benchmark weight. If Apple is 20% of the benchmark, we may hold 0–40%;
+- keep each sector within ±2 percentage points of the benchmark. If tech is 50%, we must hold 48–52%;
+- invest all the money, with no borrowing and no short selling.
+
+**The optimizer.** The AI suggests a multiplier for each stock (for example "1.3× Apple, 0.6× Intel"). Python then finds the portfolio that obeys every rule and is as close as possible to that suggestion. There is an exact method for this, which we tested against thousands of random cases. Every multiplier at 1 gives back exactly the benchmark.
+
+**The trading simulator (backtest engine).** It replays history month by month:
+1. On the first trading day of each month, at the 4 pm close, the strategy decides. It can only see data up to that moment.
+2. It trades at the next morning's opening price and pays 0.1% of whatever it buys or sells.
+3. Every day after that, the portfolio's value moves with the stocks' prices and dividends.
+4. If a company stops trading (for example it was bought by another), its value is kept as cash until the next month.
+5. After every month it saves its progress, so a stopped run carries on where it left off and gives exactly the same answer.
+
+**Two tests with no AI (free):**
+
+| Strategy | Total 2021–2023 | Benchmark | Trading costs |
+|---|---|---|---|
+| Hold the benchmark | +43.2% | +42.8% | 0.14% |
+| Random tilts (random multipliers each month) | +35.0% | +42.8% | 2.47% |
+
+Holding the benchmark almost exactly reproduces the benchmark, which shows the simulator's accounting is right. Random tilts trade a lot (about 63% of the portfolio a month) and lose about 8 points. That's the bar the AI has to clear: doing better than random, after costs.
+
+**Another bug found by checking:** at first, "hold the benchmark" trailed the benchmark by 2 points. Tracing it day by day showed the cause. When Alphabet and Amazon split their shares 20-for-1 in 2022, the price per share dropped 20×, but the share count stayed at its old figure until the next quarterly report. For a few weeks, those companies looked 20 times smaller than they were. We fixed it and added a test, and the gap shrank to 0.3 points. Lesson: when a number is a little off, find out why. Don't accept "close enough" until you understand it.
+
 _(Later phases are added here as they are built.)_
 
 ## 6. How we know the test is fair
@@ -180,6 +209,8 @@ _(Filled in after the paper-tier runs in phase P6.)_
 | How did you choose the 20 stocks? | A fixed rule: the 20 largest by market cap on 4 Jan 2021, using only that day's data |
 | How do you know the AI didn't see the future? | All data goes through one gateway that checks publication times, and automated tests try to break it |
 | Why not let the AI calculate the weights? | AI models make arithmetic mistakes; Python is exact and checkable |
+| How do you know the simulator's accounting is right? | Holding the benchmark reproduces the benchmark within 0.3 points over 3 years, and a hand-calculated 3-stock example matches to the cent |
+| What stops the AI from building a crazy portfolio? | Python enforces the rules (0-2x each stock, sectors within 2 points); the AI only suggests |
 | How do you control the AI cost? | A ledger records every call and refuses one that could pass the limit; repeated questions are answered from saved copies for free |
 | What happens if the AI gives a broken answer? | It is checked against a fixed form, asked again once, and otherwise the stock gets "no opinion" (kept at market weight) |
 | What is your benchmark, and why not QQQ? | The same 20 companies held at market weight. Comparing 20 stocks with 100 would mix up "AI skill" with "big companies did better" |

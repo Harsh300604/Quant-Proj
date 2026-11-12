@@ -3,16 +3,16 @@
 Short, factual and always up to date for the prototype track. Update it at the end of every P-phase, before pushing.
 The general project state (Phase 1 facts, environment, preferences, funding table) is in `memory.md` and still applies.
 
-_Last updated: 2026-11-12 (P2 built, first paid memos run; waiting for the user to confirm P2)._
+_Last updated: 2026-11-12 (P3 built; waiting for the user to confirm P3)._
 
 ## Where we are
 
 | Item | State |
 |---|---|
-| Plan | `implementation_plan_20.md` (approved 6 Nov 2026); decisions D38–D48 in `decisions_20.md` |
-| Main plan position | Phase 1 closed; Phase 2 done except ADR ratios for AZN/VIP/VOD and the delisted-price importer (both full run); Phase 3 built (as proto20 P2) |
-| Current P-phase | P0 and P1 done (confirmed by the user); **P2 built, waiting for the user's confirmation**; next is P3 (constraints, optimizer, backtest engine; $0) |
-| Tests | 310 pass |
+| Plan | `implementation_plan_20.md` (approved 6 Nov 2026); decisions D38–D49 in `decisions_20.md` |
+| Main plan position | Phase 1 closed; Phase 2 done except ADR ratios for AZN/VIP/VOD and the delisted-price importer (both full run); Phases 3 and 4 built (as proto20 P2, P3) |
+| Current P-phase | P0, P1 and P2 done (confirmed by the user); **P3 built, waiting for the user's confirmation**; next is P4 (agent graph, dev slice, forecast v1; first real spend of any size, asked first) |
+| Tests | 374 pass |
 | Session | Local Claude Code session on the laptop: it runs tests, the ETL and small downloads itself; it asks before large downloads and before any API call |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
 | Funding | **MVP budget $40 on the student key** (D46): **$0.0049 spent** (spend log below); auto-stop at $32; hard cap $40. `configs/stages.yaml` has `proto20`; `base.yaml`, `pilot.yaml` and the proto20 configs use `student / proto20`. The key's Console limit is $200 (outer safety net only) |
@@ -22,7 +22,9 @@ _Last updated: 2026-11-12 (P2 built, first paid memos run; waiting for the user 
 
 - Universe (frozen in `reference/proto20_universe.csv`, rule D39, `--check` OK on 12 Nov): AAPL, MSFT, AMZN, GOOGL, FB, TSLA, NVDA, PYPL, ADBE, CMCSA, NFLX, ASML, INTC, PEP, PDD, CSCO, AVGO, COST, QCOM, TMUS. These are 74.6% of the whole index; Apple is 19.9% of the 20. 21st is TXN.
 - PDD is Consumer Discretionary (D47).
-- Benchmark (same 20 at market weight, `quantagents/eval/benchmarks.py`): +32.7% (2021), −37.0% (2022), +68.9% (2023); QQQ +27.4%, −32.6%, +54.9%. No missing weights on any day.
+- Benchmark (same 20 at market weight, `quantagents/eval/benchmarks.py`), after the split fix of 12 Nov: +33.2% (2021), −37.6% (2022), +68.9% (2023); QQQ +27.4%, −32.6%, +54.9%. No missing weights on any day.
+- No-AI runs (P3): `proto20_hold` +43.16% vs index +42.84% (tracking error 0.15%); `rnd_clean` random tilts +34.99% (turnover 63% a month, cost 2.47% over 3 years).
+- Engine: `python -m quantagents.engine.backtest --config <cfg> --strategy hold_benchmark|random --run-id <id> [--fresh] [--stop-after N]` writes nav.csv, benchmark_nav.csv, weights.csv, rebalances.csv, universe.csv, summary.json and checkpoint.json to `runs/<id>/`. A strategy is `decide(Context) -> Decision`; its gateway is frozen at `as_of`.
 - Code: `quantagents/data/universe.py` (`resolve_universe(cfg, gw).at(gw, as_of)`), `config.universe.mode` (index_members | tickers | top_n_by_cap), `config.benchmark.mode` (index | custom_cap_index).
 - Period: 2021-01 to 2023-12, 36 rebalances (D40). Dev slice: 2021 only (`configs/proto20_2021.yaml`).
 - All 20 get committee views (D42); `selection.max_per_sector: null`.
@@ -49,9 +51,16 @@ Measured: a memo is about 2,700 input tokens (41% read from the prompt cache) an
 
 ## Next steps (in order)
 
-1. **User:** P2 confirmation.
-2. **P3 = main Phase 4:** `portfolio/constraints.py`, `baseline_opt.py` (benchmark weight vector as input), `engine/backtest.py` (universe from `resolve_universe`, benchmark from config, writes `universe.csv` and `benchmark_nav.csv`), `engine/strategies.py` (hold benchmark, random tilts), tests. $0.
-3. **P4 → P7** as in `implementation_plan_20.md`.
+1. **User:** P3 confirmation.
+2. **P4 = main Phase 5:**
+   - the agent graph (Emily → Bob → Dave → Otto; Bob's simulated trading D32; Dave's risk stats D33; track record D34; personas D35);
+   - selection (all 20 get views);
+   - transcripts, red flags, the quick report;
+   - the pilot (5 stocks × 3 months, dev tier), then the proto20 2021 dev slice (12 rebalances);
+   - cost forecast v1 and the MVP checkpoint.
+
+   Every paid run is asked first, with a USD/INR estimate. Watch the memos' "neutral, low" caution and the committee's turnover against the random reference (63% a month).
+3. **P5 → P7** as in `implementation_plan_20.md`.
 
 ## Deferred to the full run (not needed for proto20)
 

@@ -34,6 +34,18 @@ def test_market_cap_uses_actual_traded_price_across_a_split(gw):
     assert 0.8 < after / before < 1.2
     p = gw.get_prices(["AAA"], cal.close_utc("2015-06-02"), lookback_days=10).set_index("date")
     assert p.loc[pd.Timestamp("2015-05-29"), "raw_close"] == pytest.approx(2 * p.loc[pd.Timestamp("2015-05-29"), "close"])
+    # the actual price halves at the split; the market cap must not
+    assert p.loc[pd.Timestamp("2015-06-01"), "raw_close"] / p.loc[pd.Timestamp("2015-05-29"), "raw_close"] < 0.6
+
+
+def test_market_cap_continuous_until_and_after_the_next_filing(gw):
+    """Between the split and the next filing the old share count is scaled by the split; the
+    filing after the split (doubled count) must not double the market cap again."""
+    def mcap(day):
+        return gw.get_index_weights(cal.close_utc(day)).set_index("company_id").loc["AAA", "mcap"]
+    # the quarter ending 2015-06-27 is filed ~2015-07-29: the first post-split count
+    for a, b in (("2015-05-29", "2015-06-15"), ("2015-07-28", "2015-07-30"), ("2015-07-29", "2015-08-03")):
+        assert 0.8 < mcap(b) / mcap(a) < 1.2
 
 
 def test_two_share_classes_summed(gw):

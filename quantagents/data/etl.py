@@ -426,6 +426,31 @@ def ads_ratio_on(dates_and_ids: pd.DataFrame, adr: pd.DataFrame) -> pd.Series:
     return pd.Series(m["ordinary_per_ads"].fillna(1.0).to_numpy(), index=dates_and_ids.index)
 
 
+def splits_since_filing(m: pd.DataFrame) -> pd.Series:
+    """Split factor between the share-count filing and each price date.
+
+    A split changes the share count the next day, but the latest filing still reports the old
+    count until the company files again (found 12 Nov 2026: Alphabet's and Amazon's 20-for-1
+    splits in 2022 made their market caps 20x too small for weeks). Filings made AFTER a split
+    report split-adjusted counts, so the count is multiplied by every split dated after the
+    filing's (ET) date, up to and including the price date. Uses only splits known by that close."""
+    if "splits" not in m.columns or m.empty:
+        return pd.Series(1.0, index=m.index)
+    out = pd.Series(1.0, index=m.index)
+    filed_day = m["shares_known_utc"].dt.tz_convert(cal.ET).dt.tz_localize(None).dt.normalize()
+    for cid, g in m.groupby("company_id"):
+        ratio = g["splits"].where(g["splits"] > 0, 1.0).astype(float)
+        if (ratio == 1.0).all():
+            continue
+        days = pd.DatetimeIndex(g["date"])
+        cum = pd.Series(ratio.cumprod().to_numpy(), index=days)      # product of splits on or before each date
+        at_filing = cum.reindex(days.union(filed_day[g.index].dropna().unique())).sort_index().ffill().fillna(1.0)
+        f = filed_day[g.index]
+        base = np.where(f.isna(), 1.0, at_filing.reindex(f.fillna(days[0])).to_numpy())
+        out[g.index] = cum.to_numpy() / base
+    return out
+
+
 def compute_weights(bars: pd.DataFrame, shares: pd.DataFrame, spells: pd.DataFrame,
                     adr: pd.DataFrame | None = None) -> pd.DataFrame:
     """Daily company-level index weights: market cap = actual price x latest shares known by that
@@ -433,13 +458,18 @@ def compute_weights(bars: pd.DataFrame, shares: pd.DataFrame, spells: pd.DataFra
     that are members at that close."""
     if bars.empty:
         return pd.DataFrame(columns=["date", "company_id", "mcap", "weight", "available_utc"])
-    b = bars[["company_id", "date", "raw_close", "available_utc"]].sort_values("available_utc")
+    cols = ["company_id", "date", "raw_close", "available_utc"] + (["splits"] if "splits" in bars.columns else [])
+    b = bars[cols].sort_values("available_utc").copy()
     s = shares.dropna(subset=["shares"]).sort_values("available_utc")[["company_id", "shares", "available_utc"]]
     s = s.rename(columns={"available_utc": "shares_known_utc"})
     s["shares"] = s["shares"].astype(float)
     s["shares_known_utc"] = pd.to_datetime(s["shares_known_utc"], utc=True)
     m = pd.merge_asof(b, s.sort_values("shares_known_utc"), left_on="available_utc",
                       right_on="shares_known_utc", by="company_id", direction="backward")
+    # depositary shares: a Yahoo "split" is an ADS ratio change, handled by the dated ADR ratio instead
+    adr_ids = set(adr["company_id"]) if adr is not None and len(adr) else set()
+    factor = splits_since_filing(m)
+    m["shares"] = m["shares"] * factor.where(~m["company_id"].isin(adr_ids), 1.0)
     m["ordinary_per_ads"] = ads_ratio_on(m, adr)
     m["mcap"] = m["raw_close"] * m["shares"] / m["ordinary_per_ads"]
     sp = spells
