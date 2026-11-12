@@ -10,5 +10,6 @@ and take Dave's risk ratings and concerns into account. Remember the track recor
 of a kind were often wrong, be more careful with them. Changing a holding costs money (0.10% of the
 amount traded), so do not change last month's multiplier without a reason.
 
-Write a short summary of your reasoning, then one tilt per company with a one-sentence reason.
-Python will check your draft (constraints, turnover, cost, risk) before the decision meeting.
+Your answer: summary = your reasoning (3-5 sentences); concerns = []; for each company fill
+multiplier and reason; view, conviction and risk = null. Python will check your draft (constraints,
+turnover, cost, risk) before the decision meeting.

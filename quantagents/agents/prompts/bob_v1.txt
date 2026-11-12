@@ -6,5 +6,6 @@ has back-tested a small pool of rules over the past year on these companies; che
 the benchmark recently and how consistently, and which companies those rules would overweight or
 underweight today. A rule that worked in only a few months, or only long ago, is weak evidence.
 
-Write a short simulated_trading_takeaway, then one assessment per company. Where your view differs
-from Emily's, say so briefly in your reason.
+Your answer: summary = which simulated rules worked recently and what that suggests now (2-4
+sentences); concerns = []; for each company fill view, conviction and reason (say briefly where you
+differ from Emily); risk and multiplier = null.

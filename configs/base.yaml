@@ -58,7 +58,7 @@ models:
     paper:      {memo: claude-haiku-5-5, committee: claude-sonnet-5-5}
     robustness: {memo: claude-haiku-5-5, committee: claude-opus-5-5}
   memo:      {effort: low, max_tokens: 1500}
-  committee: {thinking: between_tools, effort: medium, max_tokens: 4000}
+  committee: {thinking: between_tools, effort: medium, max_tokens: 6000}   # 20 companies x ~60 tokens + summaries; margin against cut-offs
 
 budget:
   key_label: student         # which key is in .env: personal | student (see configs/keys.yaml); student since D46

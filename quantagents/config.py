@@ -94,6 +94,8 @@ class Constraints(Strict):
     max_multiple_of_index: float = Field(gt=0.0)
     sector_band_pp: float = Field(gt=0.0, le=100.0)
     long_only: Literal[True] = True
+    # optimizer distance (baseline_opt.project): absolute = D49 as built in P3; relative = in multiplier units
+    projection: Literal["absolute", "relative"] = "absolute"
 
     @model_validator(mode="after")
     def _range(self) -> "Constraints":

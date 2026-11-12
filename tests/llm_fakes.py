@@ -58,16 +58,16 @@ def default_answer(node: str, req: dict, tilt=None) -> dict:
     if node == "memo":
         return GOOD_MEMO
     cs = companies_of(req)
+    blank = {"view": None, "conviction": None, "risk": None, "multiplier": None}
     if node in ("emily", "bob"):
-        head = "market_summary" if node == "emily" else "simulated_trading_takeaway"
-        return {head: f"{node} summary.", "assessments": [
-            {"company_id": c, "view": "neutral", "conviction": "low", "reason": "Mixed evidence."} for c in cs]}
+        return {"summary": f"{node} summary.", "concerns": [], "stocks": [
+            {"company_id": c, **blank, "view": "neutral", "conviction": "low", "reason": "Mixed evidence."} for c in cs]}
     if node == "dave":
-        return {"portfolio_risk_summary": "Close to the benchmark.", "concerns": ["none major"],
-                "stocks": [{"company_id": c, "risk": "medium", "note": "Average risk."} for c in cs]}
+        return {"summary": "Close to the benchmark.", "concerns": ["none major"],
+                "stocks": [{"company_id": c, **blank, "risk": "medium", "reason": "Average risk."} for c in cs]}
     tilt = tilt or (lambda i, n: 1.5 if i == 0 else (0.5 if i == n - 1 else 1.0))
-    return {"summary": f"{node} decision.", "tilts": [
-        {"company_id": c, "multiplier": tilt(i, len(cs)), "reason": "Because."} for i, c in enumerate(cs)]}
+    return {"summary": f"{node} decision.", "concerns": [], "stocks": [
+        {"company_id": c, **blank, "multiplier": tilt(i, len(cs)), "reason": "Because."} for i, c in enumerate(cs)]}
 
 
 class CommitteeFake:

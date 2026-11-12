@@ -99,7 +99,11 @@ def simulate_pool(gw, companies, as_of, months: int = 12) -> dict:
             benches[d] = renormalise(gw.get_index_weights(cal.as_of_for(d)).set_index("company_id")["weight"], companies)
         except ValueError:
             continue
-    days = [d for d in days if d in benches]
+    first_bar = tri.index[0] if len(tri) else today
+    days = [d for d in days if d in benches and d >= first_bar]     # no prices yet -> month skipped
+    if not days or days[-1] != today:                                # today is always there (picks)
+        benches.setdefault(today, renormalise(gw.get_index_weights(t).set_index("company_id")["weight"], companies))
+        days.append(today)
     period_rets = {k: [] for k in POOL}
     with_signal = {k: 0 for k in POOL}
     picks = {}

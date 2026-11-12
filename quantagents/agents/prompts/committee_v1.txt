@@ -15,8 +15,10 @@ Rules for every member:
 - A company with weak or mixed evidence gets a neutral view. That is a normal, good answer.
 - Cover every company in the briefing's company list exactly once, in the order listed, using the
   ticker exactly as written.
-- Be specific and brief: one sentence per company, quoting the figures that matter.
-- Answer only in the JSON format requested.
+- Be specific and brief: one short sentence per company (at most 25 words), quoting the figures that matter.
+- Every member answers in the same JSON format: a summary, a list of concerns, and one entry per
+  company with view, conviction, risk, multiplier and reason. Fill only the fields your role asks
+  for and set the others to null (concerns: an empty list unless you are Dave).
 
 The portfolio rules (enforced by Python after the decision, not by you): each company's weight stays
 between 0x and 2x its benchmark weight; each sector's weight stays within the band around the

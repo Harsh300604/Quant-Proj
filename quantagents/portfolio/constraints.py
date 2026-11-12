@@ -35,10 +35,11 @@ class ConstraintSet:
     sector_bench: np.ndarray
     sector_lower: np.ndarray
     sector_upper: np.ndarray
+    projection: str = "absolute"      # how baseline_opt measures distance: absolute | relative
 
     @classmethod
     def build(cls, bench: pd.Series, sectors: pd.Series, min_multiple: float, max_multiple: float,
-              sector_band_pp: float) -> "ConstraintSet":
+              sector_band_pp: float, projection: str = "absolute") -> "ConstraintSet":
         b = bench.astype(float)
         if (b < 0).any() or abs(b.sum() - 1) > 1e-6:
             raise ValueError("benchmark weights must be >= 0 and sum to 1")
@@ -48,14 +49,15 @@ class ConstraintSet:
         sb = np.array([b[sec == s].sum() for s in names])
         band = sector_band_pp / 100.0
         cs = cls(tuple(b.index), b.to_numpy(), tuple(sec), min_multiple * b.to_numpy(), max_multiple * b.to_numpy(),
-                 names, sb, np.maximum(sb - band, 0.0), np.minimum(sb + band, 1.0))
+                 names, sb, np.maximum(sb - band, 0.0), np.minimum(sb + band, 1.0), projection)
         cs.assert_feasible()
         return cs
 
     @classmethod
     def from_config(cls, cfg, bench: pd.Series, sectors: pd.Series) -> "ConstraintSet":
         c = cfg.constraints
-        return cls.build(bench, sectors, c.min_multiple_of_index, c.max_multiple_of_index, c.sector_band_pp)
+        return cls.build(bench, sectors, c.min_multiple_of_index, c.max_multiple_of_index, c.sector_band_pp,
+                         c.projection)
 
     def sector_index(self) -> dict[str, np.ndarray]:
         sec = np.array(self.sectors)

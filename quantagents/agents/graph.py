@@ -31,7 +31,7 @@ import pandas as pd
 
 from quantagents.agents import summaries
 from quantagents.agents.memo import PROMPT_VERSION as MEMO_PROMPT, memo_from_text, memo_input, memo_markdown
-from quantagents.agents.schemas import BaselineTilts, BobReport, DaveReport, EmilyReport, ResearchMemo
+from quantagents.agents.schemas import CommitteeAnswer, ResearchMemo, role_check
 from quantagents.agents.selection import select
 from quantagents.agents.sim_trading import format_pool, simulate_pool
 from quantagents.agents.track_record import format_track_record, outcomes
@@ -44,8 +44,6 @@ PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
 COMMITTEE_PROMPT = "committee_v1"
 PERSONAS = {"emily": "emily_v1", "bob": "bob_v1", "dave": "dave_v1", "otto_draft": "otto_baseline_v1",
             "otto_final": "otto_decision_v1"}
-SCHEMAS = {"emily": EmilyReport, "bob": BobReport, "dave": DaveReport, "otto_draft": BaselineTilts,
-           "otto_final": BaselineTilts}
 TITLES = {"emily": "Market analysis meeting: Emily (market news & fundamentals)",
           "bob": "Market analysis meeting: Bob (quantitative & simulated trading)",
           "dave": "Market analysis meeting: Dave (risk control)",
@@ -104,13 +102,12 @@ def render_report(node: str, parsed) -> str:
         return "(no valid answer this month)"
     d = parsed if isinstance(parsed, dict) else parsed.model_dump()
     if node in ("emily", "bob"):
-        head = d.get("market_summary") or d.get("simulated_trading_takeaway")
-        return head + "\n" + "\n".join(f"- {a['company_id']}: {a['view']} ({a['conviction']}): {a['reason']}"
-                                       for a in d["assessments"])
+        return d["summary"] + "\n" + "\n".join(f"- {a['company_id']}: {a['view']} ({a['conviction']}): {a['reason']}"
+                                               for a in d["stocks"])
     if node == "dave":
-        return (d["portfolio_risk_summary"] + "\nConcerns:\n" + ("\n".join(f"- {c}" for c in d["concerns"]) or "- none")
-                + "\nRisk by company:\n" + "\n".join(f"- {s['company_id']}: {s['risk']}: {s['note']}" for s in d["stocks"]))
-    return d["summary"] + "\n" + "\n".join(f"- {t['company_id']}: x{t['multiplier']:.2f}: {t['reason']}" for t in d["tilts"])
+        return (d["summary"] + "\nConcerns:\n" + ("\n".join(f"- {c}" for c in d["concerns"]) or "- none")
+                + "\nRisk by company:\n" + "\n".join(f"- {s['company_id']}: {s['risk']}: {s['reason']}" for s in d["stocks"]))
+    return d["summary"] + "\n" + "\n".join(f"- {t['company_id']}: x{t['multiplier']:.2f}: {t['reason']}" for t in d["stocks"])
 
 
 def by_company(items: list[dict], companies: list[str]) -> tuple[dict, list[str], list[str]]:
@@ -266,13 +263,13 @@ def build_graph(inp: GraphInputs, gw, cfg, client):
             parts.append(f"Company list (in order): {', '.join(state['selected'])}")
             user = "\n\n".join(parts)
             res = client.structured(node=node, model=committee_model, system=state["briefing"], user=user,
-                                    schema=SCHEMAS[node], max_tokens=cfg.models.committee.max_tokens,
-                                    effort=cfg.models.committee.effort, thinking_off=thinking_off)
+                                    schema=CommitteeAnswer, max_tokens=cfg.models.committee.max_tokens,
+                                    effort=cfg.models.committee.effort, thinking_off=thinking_off,
+                                    check=role_check(node))
             parsed = res.parsed.model_dump() if res.ok else None
             missing = unknown = []
             if parsed is not None:
-                key = {"emily": "assessments", "bob": "assessments", "dave": "stocks"}.get(node, "tilts")
-                _, missing, unknown = by_company(parsed[key], state["selected"])
+                _, missing, unknown = by_company(parsed["stocks"], state["selected"])
             entry = {"node": node, "title": TITLES[node], "input": user, "ok": res.ok, "error": res.error,
                      "output": render_report(node, parsed), "missing": missing, "unknown": unknown,
                      "attempts": res.attempts, "api_calls": res.api_calls, "cache_hits": res.cache_hits,
@@ -283,7 +280,7 @@ def build_graph(inp: GraphInputs, gw, cfg, client):
     def tilts_of(parsed: dict | None, selected: list[str]) -> dict[str, float] | None:
         if parsed is None:
             return None
-        found, _, _ = by_company(parsed["tilts"], selected)
+        found, _, _ = by_company(parsed["stocks"], selected)
         return {c: float(found[c]["multiplier"]) if c in found else 1.0 for c in selected}
 
     def draft_check(state: AgentState) -> dict:

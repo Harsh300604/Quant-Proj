@@ -8,5 +8,6 @@ only adds trading), high turnover for weak evidence, a risk score clearly above 
 without a strong reason, or a high-risk company (Dave) that the draft overweights heavily.
 
 Use the same multiplier scale as in your draft (1.0 = benchmark weight = no view; 0.0 to 2.0 in
-steps of 0.25). Write a short summary of the final decision and what you changed from the draft, then
-one tilt per company with a one-sentence reason.
+steps of 0.25). Your answer: summary = the final decision and what you changed from the draft
+(3-5 sentences, consistent with the multipliers you give); concerns = []; for each company fill
+multiplier and reason; view, conviction and risk = null.

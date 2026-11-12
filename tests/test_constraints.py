@@ -94,3 +94,34 @@ def test_twenty_stock_benchmark_with_two_point_bands_is_feasible(synthetic_db):
             assert cs.violations(cs.bench) == []
     finally:
         g.close()
+
+
+# ---- relative distance (multiplier units), the option found necessary in the P4 pilot
+@pytest.mark.parametrize("seed", range(15))
+def test_relative_projection_is_feasible_and_nearest_in_multiplier_units(seed):
+    cs = random_set(seed)
+    rng = np.random.default_rng(seed)
+    t = rng.uniform(0, 2.5, len(cs.companies)) * cs.bench
+    w = project(cs, t, "relative")
+    assert cs.violations(w) == []
+    rel = lambda x: float((((x - t) ** 2) / cs.bench).sum())  # noqa: E731
+    others = [cs.bench] + [project(cs, rng.uniform(0, 2, len(cs.companies)) * cs.bench, "relative") for _ in range(5)]
+    for o in others:
+        for lam in (0.01, 0.1, 0.5, 0.9):
+            assert rel(w) <= rel((1 - lam) * w + lam * o) + 1e-12
+
+
+def test_relative_projection_moves_every_multiplier_by_the_same_amount():
+    """Pilot case (2 Mar 2015): a small company must not be pushed to 2x by a correction made for big ones."""
+    b = pd.Series({"AAPL": 0.5624, "MSFT": 0.2693, "NVDA": 0.0092, "AMZN": 0.1340, "AAL": 0.0251})
+    b /= b.sum()
+    sec = pd.Series({"AAPL": "IT", "MSFT": "IT", "NVDA": "IT", "AMZN": "CD", "AAL": "IND"})
+    m = {"AAPL": 1.0, "MSFT": 0.75, "NVDA": 1.0, "AMZN": 0.75, "AAL": 0.0}
+    cs = ConstraintSet.build(b, sec, 0.0, 2.0, 2.0)
+    absolute = weights_from_multipliers(cs, m, "absolute") / b
+    relative = weights_from_multipliers(cs, m, "relative") / b
+    assert absolute["NVDA"] > 1.9                                  # the P3 behaviour
+    assert relative["NVDA"] < 1.3 and relative["AAL"] < absolute["AAL"]
+    it = relative[["AAPL", "MSFT", "NVDA"]] - pd.Series({"AAPL": 1.0, "MSFT": 0.75, "NVDA": 1.0})
+    assert it.max() - it.min() < 1e-9                              # same multiplier shift inside the sector
+    assert cs.violations((relative * b).to_numpy()) == []

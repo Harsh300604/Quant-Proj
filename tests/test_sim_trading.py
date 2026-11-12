@@ -29,6 +29,18 @@ def run_pool(db):
         gw.close()
 
 
+def test_look_back_before_the_first_price_is_skipped(synthetic_db):
+    """Found in the paid pilot: the 2 Jan 2015 decision looks back to before the first stored bar."""
+    t = cal.as_of_for(pd.Timestamp("2015-01-02"))
+    gw = Gateway(synthetic_db[1], freeze_at=t)
+    try:
+        res = simulate_pool(gw, IDS, t, months=14)           # look-back starts Nov 2013; prices start Jan 2014
+    finally:
+        gw.close()
+    assert res["periods"] <= 12 and pd.Timestamp(res["from"]) >= pd.Timestamp("2014-01-02")
+    assert res["to"] == "2015-01-02" and len(res["table"]) == 5
+
+
 def test_pool_is_point_in_time_and_deterministic(synthetic_db):
     full, cut = run_pool(synthetic_db[1]), run_pool(synthetic_db[2](AS_OF))
     pd.testing.assert_frame_equal(full["table"], cut["table"])

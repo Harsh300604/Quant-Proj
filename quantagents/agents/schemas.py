@@ -33,57 +33,42 @@ RiskLevel = Literal["low", "medium", "high"]
 Multiplier = Literal[0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
 
-class StockAssessment(BaseModel):
+class CommitteeStock(BaseModel):
+    """One company in a committee member's answer. Each role fills its own fields and sets the others to null."""
     model_config = ConfigDict(extra="forbid")
     company_id: str = Field(description="Ticker exactly as listed in the briefing.")
-    view: Outlook = Field(description="Expected 3-month return relative to the benchmark.")
-    conviction: Conviction
-    reason: str = Field(description="One sentence, quoting figures from the briefing.")
+    view: Outlook | None = Field(description="Emily and Bob: expected 3-month return relative to the benchmark. "
+                                             "Others: null.")
+    conviction: Conviction | None = Field(description="Emily and Bob: strength of the evidence. Others: null.")
+    risk: RiskLevel | None = Field(description="Dave: risk over the next 3 months. Others: null.")
+    multiplier: Multiplier | None = Field(description="Otto: target weight as a multiple of the benchmark weight. "
+                                                      "Others: null.")
+    reason: str = Field(description="One short sentence (at most 25 words) quoting figures from the briefing.")
 
 
-class EmilyReport(BaseModel):
-    """Market news & fundamentals analyst."""
+class CommitteeAnswer(BaseModel):
+    """The one answer format of every committee meeting. A single schema keeps the prompt-cache
+    prefix identical across the five calls (the output schema is part of the cached prompt)."""
     model_config = ConfigDict(extra="forbid")
-    market_summary: str = Field(description="2-4 sentences on the news and fundamentals picture across the companies.")
-    assessments: list[StockAssessment] = Field(description="One entry per company, in the order listed.")
+    summary: str = Field(description="2-5 sentences: Emily the news and fundamentals picture; Bob what the simulated "
+                                     "trading shows; Dave the portfolio's risk; Otto the decision and its reasons.")
+    concerns: list[str] = Field(description="Dave: 0-5 specific risk concerns. Others: an empty list.")
+    stocks: list[CommitteeStock] = Field(description="One entry per company, in the order listed.")
 
 
-class BobReport(BaseModel):
-    """Quantitative & simulated-trading analyst."""
-    model_config = ConfigDict(extra="forbid")
-    simulated_trading_takeaway: str = Field(
-        description="2-4 sentences: which simulated rules worked recently and what that suggests now.")
-    assessments: list[StockAssessment] = Field(description="One entry per company, in the order listed.")
+# the fields each role must fill (checked in Python; a missing field counts as an invalid answer)
+ROLE_FIELDS = {"emily": ("view", "conviction"), "bob": ("view", "conviction"), "dave": ("risk",),
+               "otto_draft": ("multiplier",), "otto_final": ("multiplier",)}
 
 
-class StockRisk(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    company_id: str
-    risk: RiskLevel
-    note: str = Field(description="One sentence, quoting figures from the briefing.")
+def role_check(node: str):
+    """A check for LLMClient.structured: '' if the role filled its fields for every company it listed."""
+    fields = ROLE_FIELDS[node]
 
-
-class DaveReport(BaseModel):
-    """Risk control analyst."""
-    model_config = ConfigDict(extra="forbid")
-    portfolio_risk_summary: str = Field(description="2-4 sentences on the current portfolio's risk numbers.")
-    concerns: list[str] = Field(description="0-5 specific concerns (concentration, sectors, volatility, liquidity, "
-                                            "disagreement between Emily and Bob).")
-    stocks: list[StockRisk] = Field(description="One entry per company, in the order listed.")
-
-
-class Tilt(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    company_id: str
-    multiplier: Multiplier = Field(description="Target weight as a multiple of the benchmark weight.")
-    reason: str = Field(description="One sentence.")
-
-
-class BaselineTilts(BaseModel):
-    """Otto's decision (baseline variant): a multiplier of benchmark weight per company."""
-    model_config = ConfigDict(extra="forbid")
-    summary: str = Field(description="3-5 sentences explaining the overall decision.")
-    tilts: list[Tilt] = Field(description="One entry per company, in the order listed.")
+    def check(ans: CommitteeAnswer) -> str:
+        bad = [s.company_id for s in ans.stocks if any(getattr(s, f) is None for f in fields)]
+        return f"{node} left {'/'.join(fields)} empty for {', '.join(bad[:5])}" if bad else ""
+    return check
 
 
 class ResearchMemo(MemoBody):

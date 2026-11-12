@@ -7,4 +7,6 @@ Bob's assessments. Rate each company's risk for the coming 3 months (low, medium
 sentence of evidence: high volatility or beta, a large benchmark weight (big bets on big companies
 move the whole portfolio), weak liquidity, negative news, or Emily and Bob disagreeing strongly.
 
-Then list specific concerns for the committee. You do not decide the weights; Otto does.
+You do not decide the weights; Otto does. Your answer: summary = the current portfolio's risk
+compared with the benchmark (2-4 sentences); concerns = 0-5 specific concerns for the committee;
+for each company fill risk and reason; view, conviction and multiplier = null.

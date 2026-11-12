@@ -174,7 +174,9 @@ class LLMClient:
 
     def structured(self, *, node: str, model: str, system: str, user: str | list, schema: type[BaseModel],
                    max_tokens: int, effort: str, thinking_off: bool = True, replicate: int = 0,
-                   attempts: int = 2) -> CallResult:
+                   attempts: int = 2, check=None) -> CallResult:
+        """``check(parsed) -> error text`` (optional): extra rules beyond the schema; a non-empty
+        result counts as an invalid answer (retried, then a failure)."""
         req = build_request(model=model, system=system, user=user, schema=schema, max_tokens=max_tokens,
                             effort=effort, thinking_off=thinking_off)
         result = CallResult(False, None, 0, 0, 0, 0.0)
@@ -203,6 +205,10 @@ class LLMClient:
                 result.usd += usd
             result.usage = resp["usage"]
             parsed, err = self._parse(resp, schema)
+            if parsed is not None and check is not None:
+                err = check(parsed) or ""
+                if err:
+                    parsed = None
             if parsed is not None:
                 result.ok, result.parsed, result.error = True, parsed, ""
                 return result
