@@ -6,7 +6,8 @@ World (2014-01-02 .. 2015-12-31):
 - SEC: quarterly revenue for every company; AAA's Q3-2014 revenue is RESTATED in the 10-K
   accepted 2015-02-20; AAA's 10-Q for the quarter ending 2014-12-27 is accepted 2015-01-28
   16:31 (ET clock) - i.e. AFTER that day's close
-- shares outstanding from each filing; GOOGL files two classes in one filing
+- shares outstanding from each filing; GOOGL files two classes in one filing; NEW has no
+  cover-page count (balance-sheet count only); BBB has a split after the price window
 - news for AAA at 15:59 / 16:01 ET, on a DST-switch day, at 00:30 UTC (still the previous day
   in New York), on a weekend, and on the 1 pm early-close day after Thanksgiving
 """
@@ -68,13 +69,21 @@ def _french(daily: bool) -> bytes:
     return out
 
 
-def _facts(cik: str, quarters: list[tuple[str, str, float, str]], shares: list[tuple[str, list[float], str]]) -> dict:
-    """quarters: (start, end, value, accn); shares: (end, [values per class], accn)."""
+def _facts(cik: str, quarters: list[tuple[str, str, float, str]], shares: list[tuple[str, list[float], str]],
+           cover_page: bool = True) -> dict:
+    """quarters: (start, end, value, accn); shares: (end, [values per class], accn).
+    cover_page=False: no cover-page share count (as for multi-class companies in the SEC facts
+    file); the count is reported only as balance-sheet CommonStockSharesOutstanding."""
     rev = [{"start": s, "end": e, "val": v, "accn": a, "fy": 2015, "fp": "Q", "form": "10-Q",
             "filed": "2099-01-01"} for s, e, v, a in quarters]
     sh = [{"end": e, "val": v, "accn": a, "form": "10-Q", "filed": "2099-01-01"} for e, vals, a in shares for v in vals]
-    return {"cik": int(cik), "facts": {"us-gaap": {"Revenues": {"units": {"USD": rev}}},
-                                        "dei": {"EntityCommonStockSharesOutstanding": {"units": {"shares": sh}}}}}
+    us_gaap = {"Revenues": {"units": {"USD": rev}}}
+    dei = {}
+    if cover_page:
+        dei["EntityCommonStockSharesOutstanding"] = {"units": {"shares": sh}}
+    else:
+        us_gaap["CommonStockSharesOutstanding"] = {"units": {"shares": sh}}
+    return {"cik": int(cik), "facts": {"us-gaap": us_gaap, "dei": dei}}
 
 
 def build_raw_store(root: Path) -> Path:
@@ -119,6 +128,11 @@ def build_raw_store(root: Path) -> Path:
     _prices(9).to_parquet(pf / "_NDX.parquet")
     p_new = _prices(5)
     p_new[p_new.index >= "2015-03-01"].to_parquet(pf / "NEW.parquet")
+    # BBB splits 10-for-1 on 2016-06-01, AFTER our price window ends: Yahoo's old prices are
+    # already divided by 10, but the split only shows in the separate split history
+    sf = raw / "prices" / "splits"
+    sf.mkdir(parents=True, exist_ok=True)
+    (sf / "BBB.csv").write_text("date,ratio\n2016-06-01,10.0\n", encoding="utf-8")
 
     # --- SEC submissions (acceptance times; ET clock printed with 'Z') and company facts
     subs = raw / "edgar" / "submissions"
@@ -136,7 +150,7 @@ def build_raw_store(root: Path) -> Path:
                 acc_str = "2015-01-28T16:31:00.000Z"
             accns.append(accn); forms.append("10-Q"); dates.append(f"{acc:%Y-%m-%d}"); accepted.append(acc_str)
             quarters.append((qs, qe, 1000.0 + 10 * i, accn))
-            shares.append((qe, [400.0, 100.0] if t == "GOOGL" else [500.0], accn))
+            shares.append((qe, [400.0e6, 100.0e6] if t == "GOOGL" else [500.0e6], accn))
         if t == "AAA":  # restatement of Q3-2014 in a 10-K accepted 2015-02-20
             accns.append(f"{cik}-k2014"); forms.append("10-K"); dates.append("2015-02-20")
             accepted.append("2015-02-20T09:00:00.000Z")
@@ -146,7 +160,7 @@ def build_raw_store(root: Path) -> Path:
             "addresses": {"business": {"stateOrCountry": "CA" if t != "BBB" else "X0"}},
             "filings": {"recent": {"accessionNumber": accns, "form": forms, "filingDate": dates,
                                    "acceptanceDateTime": accepted}, "files": []}})
-        write_json_gz(facts / f"CIK{cik}.json.gz", _facts(cik, quarters, shares))
+        write_json_gz(facts / f"CIK{cik}.json.gz", _facts(cik, quarters, shares, cover_page=(t != "NEW")))
 
     # --- news for AAA
     rows = []

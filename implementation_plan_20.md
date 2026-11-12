@@ -99,16 +99,17 @@ That's about $0.25 per rebalance, or about $9 for 36 rebalances. Prompt caching 
 **Goal:** the data store is built and checked, and the top-20 list on 2021-01-04 is trustworthy.
 
 **Tasks:**
-- [ ] Main Phase 2 manual checks 1–5 (`implementation_plan.md` → Phase 2 → Manual checks); output pasted to the dev chat
-- [ ] Look at the top 30 by weight on 2021-01-04:
+- [x] Main Phase 2 manual checks 1–5 (`implementation_plan.md` → Phase 2 → Manual checks); run by the local dev chat on the laptop, 12 Nov
+- [x] Look at the top 30 by weight on 2021-01-04:
   ```powershell
   python -m quantagents.data.gateway --as-of 2021-01-04 --show universe
   ```
-- [ ] **ADR ratios** (`reference/adr_ratios.csv`) filled at least for every foreign filer (20-F/40-F) in that top 30, e.g. ASML, PDD, JD, BIDU, NTES if present.
+  The first look was wrong (Apple, Microsoft and Amazon missing; Sirius XM at $262B). Four data bugs were fixed on 12 Nov: stale pilot price files, splits after the price window, missing per-class share counts, and fixed-only ADR ratios (`decisions.md` known issues, 12 Nov; 12 tests added, 237 pass).
+- [x] **ADR ratios** (`reference/adr_ratios.csv`) filled for the foreign filers in that top 30: ASML, PDD, JD, NTES (5 from 2020-10-02), plus TEAM, NXPI, GFS, CHKP (1:1), BIDU and TCOM (rows marked "check"). AZN, VIP and VOD are deferred to the full run.
   - A missing ratio can make a market cap wrong by up to 10×, which would put the wrong company into the top 20.
   - The data report's section 3 lists the foreign filers.
-- [ ] After ETL is rebuilt with the ratios, the top 20 match a sensible outside view. For example, the large names in the NASDAQ-100 in early January 2021 include Apple, Microsoft, Amazon, Alphabet, Facebook, Tesla and Nvidia. Discuss any surprise in the dev chat.
-- [ ] Every one of the 20 shows `has_prices = True`.
+- [x] After ETL is rebuilt with the ratios, the top 20 match a sensible outside view: AAPL, MSFT, AMZN, GOOGL, FB, TSLA, NVDA, PYPL, ADBE, CMCSA, NFLX, ASML, INTC, PEP, PDD, CSCO, AVGO, COST, QCOM, TMUS. TXN is 21st, 9% below TMUS.
+- [x] Every one of the 20 shows `has_prices = True`.
 
 ---
 

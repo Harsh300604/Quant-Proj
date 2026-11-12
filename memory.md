@@ -12,7 +12,7 @@ _Last updated: 2026-11-06 (handover point: this chat ends here; a new dev chat c
 | Item | State |
 |---|---|
 | Plan | `implementation_plan.md`, approved 2026-11-04 |
-| Current phase | **Phase 2** built and pushed (225 tests); **user's manual checks pending** (pip install, ETL build, leak tests, gateway CLI, data report) |
+| Current phase | **Phase 2** manual checks done 12 Nov by the local dev chat. They found 4 data bugs, now fixed (237 tests; `decisions.md` known issues, 12 Nov). Still open: ADX/RVOL (proto20 P1), and ADR ratios for AZN/VIP/VOD (full run) |
 | Phases done | **Phase 1** (closed 6 Nov; open item: 42 delisted-ticker prices, D26) |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
 | Last step | Client materials reviewed; all 7 suggestions adopted (D32-D37) and written into the plan; handoff prompt + local setup written |

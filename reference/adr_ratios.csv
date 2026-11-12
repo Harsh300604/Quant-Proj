@@ -2,4 +2,21 @@
 # in ORDINARY shares; the Yahoo price is per ADS. market cap = price x (ordinary shares / ordinary_per_ads).
 # Fill from the depositary bank's page or the company's 20-F cover. The data report lists
 # 20-F/40-F filers whose ratio is still missing.
+# valid_from: the ratio applies to prices from that date until the next row (blank = from the start).
+# Ratio changes made by an ADS split also appear in Yahoo's split history (raw/prices/splits/).
+# Filled 12 Nov 2026 for the foreign filers near the top 30 on 2021-01-04 (proto20 P0); "check" = confirm on the 20-F cover.
 company_id,ordinary_per_ads,valid_from,note
+ASML,1,,New York registry shares: 1 share each (no ADS)
+TEAM,1,,Class A ordinary shares listed directly (no ADS)
+NXPI,1,,ordinary shares listed directly (no ADS)
+GFS,1,,ordinary shares listed directly (no ADS)
+CHKP,1,,ordinary shares listed directly (no ADS)
+JD,2,,1 ADS = 2 Class A ordinary shares (since the 2014 IPO)
+PDD,4,,1 ADS = 4 Class A ordinary shares (since the 2018 IPO)
+NTES,25,,1 ADS = 25 ordinary shares (after the 2006 4-for-1 ADS split)
+NTES,5,2020-10-02,1 ADS = 5 ordinary shares (5-for-1 ADS split on this date per Yahoo split history)
+BIDU,1,,1 ADS = 1 Class A share before the 2010 ADS split (check)
+BIDU,0.1,2010-05-12,10 ADS = 1 Class A share (10-for-1 ADS split per Yahoo split history)
+BIDU,8,2021-03-01,1 ADS = 8 Class A shares after the 1-to-80 share subdivision (date: check; full run only)
+TCOM,0.125,,8 ADS = 1 ordinary share before the 2021 subdivision (check)
+TCOM,1,2021-03-18,1 ADS = 1 ordinary share after the 1-to-8 subdivision (date: check; full run only)

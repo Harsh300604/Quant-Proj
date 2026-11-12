@@ -52,6 +52,25 @@ def _yf_fetch(symbol: str, start: date, end: date) -> pd.DataFrame:
                                      auto_adjust=False, actions=True, repair=False)
 
 
+def _yf_splits(symbol: str) -> pd.Series:
+    """Every split Yahoo knows for ``symbol`` up to today (ratio per date)."""
+    import yfinance as yf
+    return yf.Ticker(symbol).splits
+
+
+def splits_file(raw_dir: Path, ticker: str) -> Path:
+    return raw_dir / "prices" / "splits" / f"{file_name(ticker)}.csv"
+
+
+def read_splits(raw_dir: Path, ticker: str) -> pd.Series:
+    """Saved split history (date -> ratio); empty if none was downloaded."""
+    f = splits_file(raw_dir, ticker)
+    if not f.exists():
+        return pd.Series(dtype=float)
+    df = pd.read_csv(f, parse_dates=["date"])
+    return pd.Series(df["ratio"].to_numpy(dtype=float), index=pd.DatetimeIndex(df["date"]), dtype=float)
+
+
 def normalise(df: pd.DataFrame) -> pd.DataFrame:
     df = df.rename(columns=_YF_RENAME)
     for c in PRICE_COLUMNS:
@@ -70,6 +89,7 @@ class YFinancePrices(PriceSource):
     raw_dir: Path
     manifest: Manifest
     fetch: Callable[[str, date, date], pd.DataFrame] | None = None  # None = yfinance
+    fetch_splits: Callable[[str], pd.Series] | None = None          # None = yfinance
     aliases: dict[str, str] = field(default_factory=load_aliases)
     name: str = "yfinance"
 
@@ -77,16 +97,45 @@ class YFinancePrices(PriceSource):
     def folder(self) -> Path:
         return self.raw_dir / "prices" / "yfinance"
 
+    def _covers(self, path: Path, start: date, end: date) -> bool:
+        """Complete AND downloaded for the same date range (a pilot file is not a full file)."""
+        if not self.manifest.is_complete(path):
+            return False
+        e = self.manifest.entry(path)
+        return e is not None and e.params.get("start") == str(start) and e.params.get("end") == str(end)
+
+    def _save_splits(self, tk: str, symbol: str) -> None:
+        """Full split history up to today. Yahoo scales old prices by EVERY split up to the day of
+        the download, including splits after our price window ends, so the ETL needs all of them
+        to rebuild the actual traded price (``raw_close``)."""
+        try:
+            s = (self.fetch_splits or _yf_splits)(symbol)
+        except Exception as exc:
+            log.warning("%s (%s): split history error %s", tk, symbol, type(exc).__name__)
+            return
+        s = pd.Series(dtype=float) if s is None else s
+        idx = pd.to_datetime(s.index)
+        if getattr(idx, "tz", None) is not None:
+            idx = idx.tz_localize(None)
+        df = pd.DataFrame({"date": idx.normalize().strftime("%Y-%m-%d"), "ratio": pd.to_numeric(s.to_numpy())})
+        df = df[df["ratio"] > 0]
+        f = splits_file(self.raw_dir, tk)
+        f.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(f, index=False)
+        self.manifest.record("splits", f, len(df), {"symbol": symbol})
+
     def download(self, tickers: Iterable[str], start: date, end: date) -> dict[str, Path | None]:
         out: dict[str, Path | None] = {}
         missing = []
         tickers = list(tickers)
         for tk in tqdm(tickers, desc="prices", unit="ticker", disable=len(tickers) < 3):
             path = self.folder / f"{file_name(tk)}.parquet"
-            if self.manifest.is_complete(path):
-                out[tk] = path
-                continue
             symbol = self.aliases.get(tk, tk)
+            if self._covers(path, start, end):
+                out[tk] = path
+                if not self.manifest.is_complete(splits_file(self.raw_dir, tk)):
+                    self._save_splits(tk, symbol)
+                continue
             try:
                 df = (self.fetch or _yf_fetch)(symbol, start, end)
             except Exception as exc:  # yfinance raises many kinds of errors for dead tickers
@@ -100,6 +149,7 @@ class YFinancePrices(PriceSource):
             path.parent.mkdir(parents=True, exist_ok=True)
             df.to_parquet(path)
             self.manifest.record("prices", path, len(df), {"symbol": symbol, "start": str(start), "end": str(end)})
+            self._save_splits(tk, symbol)   # always together with the prices, so both have the same basis
             out[tk] = path
         self._write_missing(missing)
         return out

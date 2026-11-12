@@ -111,7 +111,7 @@ def test_prices_download_and_missing(raw):
     def fetch(sym, s, e):
         calls.append(sym)
         return fake_history(sym, s, e)
-    src = YFinancePrices(raw, m, fetch=fetch, aliases={"FB": "META"})
+    src = YFinancePrices(raw, m, fetch=fetch, fetch_splits=lambda s: pd.Series(dtype=float), aliases={"FB": "META"})
     res = src.download(["AAPL", "FB", "DEAD", "^NDX"], date(2014, 1, 1), date(2015, 1, 31))
     assert res["DEAD"] is None and res["AAPL"].exists()
     assert "META" in calls                              # alias used
@@ -121,10 +121,39 @@ def test_prices_download_and_missing(raw):
     assert df.index.tz is None and len(df) == 3
     missing = pd.read_csv(raw / "prices" / "missing.csv")
     assert list(missing["ticker"]) == ["DEAD"]
+    # split history saved next to the prices
+    assert (raw / "prices" / "splits" / "AAPL.csv").exists()
     # resume: nothing re-fetched except the missing ticker
     calls.clear()
     src.download(["AAPL", "FB", "DEAD"], date(2014, 1, 1), date(2015, 1, 31))
     assert calls == ["DEAD"]
+
+
+def test_prices_refetched_when_date_range_differs(raw):
+    """A file from the pilot (short window) must not count as done for the full download."""
+    m = Manifest(raw)
+    calls = []
+    def fetch(sym, s, e):
+        calls.append(sym)
+        return fake_history(sym, s, e)
+    src = YFinancePrices(raw, m, fetch=fetch, fetch_splits=lambda s: pd.Series(dtype=float), aliases={})
+    src.download(["AAPL"], date(2014, 1, 1), date(2015, 7, 9))
+    calls.clear()
+    src.download(["AAPL"], date(2014, 1, 1), date(2024, 4, 9))
+    assert calls == ["AAPL"]
+    calls.clear()
+    src.download(["AAPL"], date(2014, 1, 1), date(2024, 4, 9))
+    assert calls == []
+
+
+def test_split_history_saved(raw):
+    m = Manifest(raw)
+    splits = pd.Series([10.0], index=pd.DatetimeIndex(["2024-06-10"], tz="America/New_York"))
+    src = YFinancePrices(raw, m, fetch=fake_history, fetch_splits=lambda s: splits, aliases={})
+    src.download(["NVDA"], date(2014, 1, 1), date(2015, 1, 31))
+    from quantagents.data.download.prices import read_splits
+    s = read_splits(raw, "NVDA")
+    assert s.to_dict() == {pd.Timestamp("2024-06-10"): 10.0}
 
 
 def test_manual_prices(store):

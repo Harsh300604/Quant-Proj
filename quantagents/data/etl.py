@@ -36,9 +36,9 @@ import pandas as pd
 
 from quantagents.config import CONFIG_DIR, REPO_ROOT, load_config
 from quantagents.data import calendar as cal
-from quantagents.data.download.base import read_json_gz, read_jsonl_gz
+from quantagents.data.download.base import Manifest, read_json_gz, read_jsonl_gz
 from quantagents.data.download.factors import FRENCH_FILES, parse_french_csv
-from quantagents.data.download.prices import BENCHMARKS, file_name, read_manual_prices
+from quantagents.data.download.prices import BENCHMARKS, file_name, read_manual_prices, read_splits
 from quantagents.paths import Paths, configure_third_party_caches
 
 log = logging.getLogger("quantagents.etl")
@@ -72,6 +72,7 @@ METRICS: dict[str, list[tuple[str, str]]] = {
     "long_term_debt": [("us-gaap", "LongTermDebt"), ("us-gaap", "LongTermDebtNoncurrent"),
                        ("ifrs-full", "NoncurrentFinancialLiabilities")],
 }
+SHARE_COLUMNS = ["company_id", "cik", "period_end", "shares", "accn", "available_utc", "concept"]
 US_STATES = set("AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY "
                 "NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY PR".split())
 
@@ -115,9 +116,24 @@ def sector_for_sic(sic: str | int | None, table: pd.DataFrame | None = None) -> 
     return min(rows)[1] if rows else "Unknown"
 
 
+def later_split_factor(paths: Paths, manifest: Manifest, ticker: str, last_bar: pd.Timestamp,
+                       price_file: Path) -> float:
+    """Product of the splits Yahoo applied AFTER our last bar, up to the day the prices were
+    downloaded. Yahoo scales every old price by those splits too, but they are not in our price
+    window, so without this factor ``raw_close`` would be off by e.g. 10x after a 10-for-1 split."""
+    s = read_splits(paths.raw, ticker)
+    if s.empty:
+        return 1.0
+    e = manifest.entry(price_file) if price_file.exists() else None
+    downloaded = pd.Timestamp(e.downloaded_utc).tz_convert(None).normalize() if e else pd.Timestamp.today().normalize()
+    later = s[(s.index > last_bar) & (s.index <= downloaded)]
+    return float(later.prod()) if len(later) else 1.0
+
+
 def load_prices(paths: Paths, tickers: list[str]) -> pd.DataFrame:
     """One long table of daily bars for every ticker with data (Yahoo first, then manual CSVs)."""
     frames = []
+    manifest = Manifest(paths.raw)
     for tk in tickers:
         f = paths.raw / "prices" / "yfinance" / f"{file_name(tk)}.parquet"
         df, source = (pd.read_parquet(f), "yfinance") if f.exists() else (None, None)
@@ -137,7 +153,8 @@ def load_prices(paths: Paths, tickers: list[str]) -> pd.DataFrame:
         ratio = df["splits"].where(df["splits"] > 0, 1.0)
         # product of split ratios strictly AFTER each date
         after = ratio[::-1].cumprod()[::-1].shift(-1).fillna(1.0)
-        df["raw_close"] = df["close"] * after
+        extra = later_split_factor(paths, manifest, tk, df.index.max(), f) if source == "yfinance" else 1.0
+        df["raw_close"] = df["close"] * after * extra
         df["ticker"] = tk
         df["source"] = source
         df["date"] = df.index
@@ -181,7 +198,7 @@ def load_facts(paths: Paths, cik: str, company_id: str, filings: pd.DataFrame) -
     empty_f = pd.DataFrame(columns=["company_id", "cik", "metric", "concept", "priority", "unit", "value",
                                     "period_start", "period_end", "duration_days", "fy", "fp", "form", "accn",
                                     "filed", "available_utc"])
-    empty_s = pd.DataFrame(columns=["company_id", "cik", "period_end", "shares", "accn", "available_utc"])
+    empty_s = pd.DataFrame(columns=SHARE_COLUMNS)
     if not f.exists():
         return empty_f, empty_s
     facts = read_json_gz(f).get("facts", {})
@@ -207,18 +224,57 @@ def load_facts(paths: Paths, cik: str, company_id: str, filings: pd.DataFrame) -
                                  "accn": it.get("accn"), "filed": it.get("filed"),
                                  "available_utc": avail(it.get("accn"), it.get("filed"))})
     srows = []
-    for it in facts.get("dei", {}).get("EntityCommonStockSharesOutstanding", {}).get("units", {}).get("shares", []):
-        srows.append({"accn": it.get("accn"), "period_end": it.get("end"), "val": float(it["val"]),
-                      "available_utc": avail(it.get("accn"), it.get("filed"))})
+    for prio, (tax, concept) in enumerate(SHARE_CONCEPTS):
+        for it in facts.get(tax, {}).get(concept, {}).get("units", {}).get("shares", []):
+            if "val" not in it or "end" not in it or not it.get("accn"):
+                continue
+            start = it.get("start")
+            dur = (pd.Timestamp(it["end"]) - pd.Timestamp(start)).days if start else 0
+            if dur > 380:                      # averages over more than a year are too old a picture
+                continue
+            srows.append({"accn": it["accn"], "period_end": it["end"], "duration": dur, "priority": prio,
+                          "concept": concept, "val": float(it["val"]),
+                          "available_utc": avail(it.get("accn"), it.get("filed"))})
     shares = empty_s
     if srows:
-        sd = pd.DataFrame(srows)
-        # several rows in one filing = one per share class -> total company shares
-        shares = (sd.groupby(["accn", "period_end"], as_index=False)
-                    .agg(shares=("val", "sum"), available_utc=("available_utc", "min")))
+        shares = pick_share_counts(pd.DataFrame(srows))
         shares.insert(0, "cik", cik)
         shares.insert(0, "company_id", company_id)
     return (pd.DataFrame(rows) if rows else empty_f), shares
+
+
+# Shares outstanding, best source first. The SEC company-facts file leaves out figures reported per
+# share class, so companies with several classes (Alphabet, Meta, Comcast, Zoom, ...) and many
+# foreign filers have no cover-page count; the balance-sheet count or the latest period's average
+# share count is then the best figure known at that filing.
+SHARE_CONCEPTS = [("dei", "EntityCommonStockSharesOutstanding"),
+                  ("us-gaap", "CommonStockSharesOutstanding"),
+                  ("us-gaap", "WeightedAverageNumberOfSharesOutstandingBasic"),
+                  ("ifrs-full", "WeightedAverageShares")]
+MIN_PLAUSIBLE_SHARES = 100_000     # e.g. Fox's cover page once reported "1"
+
+
+def pick_share_counts(sd: pd.DataFrame) -> pd.DataFrame:
+    """One share count per filing: the best source, its latest period, its shortest period
+    (latest quarter rather than year-to-date). Cover-page rows of one filing and period are summed
+    (one row per share class). Then a filing that reports an OLDER period than one already known
+    (an amendment, or a comparative figure) is dropped. Uses only each filing and earlier ones, so
+    it is point-in-time."""
+    cover = sd[sd["priority"] == 0]
+    cover = (cover.groupby(["accn", "period_end", "duration", "priority", "concept"], as_index=False)
+                  .agg(val=("val", "sum"), available_utc=("available_utc", "min")))
+    sd = pd.concat([cover, sd[sd["priority"] > 0]], ignore_index=True)
+    sd = sd[sd["val"] >= MIN_PLAUSIBLE_SHARES].copy()
+    if sd.empty:
+        return pd.DataFrame(columns=["period_end", "shares", "accn", "available_utc", "concept"])
+    sd["period_end"] = pd.to_datetime(sd["period_end"])
+    sd["available_utc"] = pd.to_datetime(sd["available_utc"], utc=True)
+    sd = sd.sort_values(["accn", "priority", "period_end", "duration"], ascending=[True, True, False, True])
+    best = sd.drop_duplicates("accn", keep="first").sort_values(["available_utc", "period_end"])
+    best = best[best["period_end"] >= best["period_end"].cummax()]
+    best = best.rename(columns={"val": "shares"})
+    best["period_end"] = best["period_end"].dt.strftime("%Y-%m-%d")
+    return best[["period_end", "shares", "accn", "available_utc", "concept"]].reset_index(drop=True)
 
 
 def load_news(paths: Paths, ticker: str, company_id: str) -> pd.DataFrame:
@@ -331,18 +387,48 @@ def company_price_tickers(company_map: pd.DataFrame, prices: pd.DataFrame) -> di
     return out
 
 
+def adr_table(ref: pd.DataFrame) -> pd.DataFrame:
+    """reference/adr_ratios.csv -> company_id, ordinary_per_ads, valid_from (a ratio applies to
+    prices from its valid_from date until the next row; a blank valid_from means 'always')."""
+    cols = ["company_id", "ordinary_per_ads", "valid_from"]
+    if ref.empty:
+        return pd.DataFrame({"company_id": pd.Series(dtype=str), "ordinary_per_ads": pd.Series(dtype=float),
+                             "valid_from": pd.Series(dtype="datetime64[ns]")})
+    t = ref[ref["ordinary_per_ads"].astype(str).str.strip() != ""][cols].copy()
+    t["ordinary_per_ads"] = t["ordinary_per_ads"].astype(float)
+    t["valid_from"] = pd.to_datetime(t["valid_from"].replace("", "1900-01-01"))
+    return t.reset_index(drop=True)
+
+
+def ads_ratio_on(dates_and_ids: pd.DataFrame, adr: pd.DataFrame) -> pd.Series:
+    """Ordinary shares per depositary share for each (company_id, date) row; 1.0 where none applies."""
+    if adr is None or len(adr) == 0:
+        return pd.Series(1.0, index=dates_and_ids.index)
+    left = dates_and_ids[["company_id", "date"]].copy()
+    left["date"] = pd.to_datetime(left["date"]).astype("datetime64[ns]")
+    left["_row"] = np.arange(len(left))
+    right = adr.rename(columns={"valid_from": "date"}).copy()
+    right["date"] = right["date"].astype("datetime64[ns]")
+    m = pd.merge_asof(left.sort_values("date"), right.sort_values("date"), on="date", by="company_id",
+                      direction="backward").sort_values("_row")
+    return pd.Series(m["ordinary_per_ads"].fillna(1.0).to_numpy(), index=dates_and_ids.index)
+
+
 def compute_weights(bars: pd.DataFrame, shares: pd.DataFrame, spells: pd.DataFrame,
-                    adr: dict[str, float]) -> pd.DataFrame:
+                    adr: pd.DataFrame | None = None) -> pd.DataFrame:
     """Daily company-level index weights: market cap = actual price x latest shares known by that
-    close (sum of share classes, D27), over the companies that are members at that close."""
+    close (sum of share classes, D27) / ordinary shares per ADS on that date, over the companies
+    that are members at that close."""
     if bars.empty:
         return pd.DataFrame(columns=["date", "company_id", "mcap", "weight", "available_utc"])
     b = bars[["company_id", "date", "raw_close", "available_utc"]].sort_values("available_utc")
     s = shares.dropna(subset=["shares"]).sort_values("available_utc")[["company_id", "shares", "available_utc"]]
     s = s.rename(columns={"available_utc": "shares_known_utc"})
+    s["shares"] = s["shares"].astype(float)
+    s["shares_known_utc"] = pd.to_datetime(s["shares_known_utc"], utc=True)
     m = pd.merge_asof(b, s.sort_values("shares_known_utc"), left_on="available_utc",
                       right_on="shares_known_utc", by="company_id", direction="backward")
-    m["ordinary_per_ads"] = m["company_id"].map(adr).fillna(1.0)
+    m["ordinary_per_ads"] = ads_ratio_on(m, adr)
     m["mcap"] = m["raw_close"] * m["shares"] / m["ordinary_per_ads"]
     sp = spells
     member = np.zeros(len(m), dtype=bool)
@@ -397,8 +483,8 @@ def build(cfg_path: str | Path = CONFIG_DIR / "base.yaml", out: Path | None = No
     sic_table = load_reference("sic_to_sector.csv")
     so = load_reference("sector_overrides.csv")
     sector_over = dict(zip(so["company_id"], so["sector"]))
-    adr_ref = load_reference("adr_ratios.csv")
-    adr = {r.company_id: float(r.ordinary_per_ads) for r in adr_ref.itertuples() if r.ordinary_per_ads}
+    adr = adr_table(load_reference("adr_ratios.csv"))
+    latest_adr = adr.sort_values("valid_from").groupby("company_id")["ordinary_per_ads"].last().to_dict()
     names = {}
     tn = paths.derived / "ticker_names.csv"
     if tn.exists():
@@ -427,12 +513,12 @@ def build(cfg_path: str | Path = CONFIG_DIR / "base.yaml", out: Path | None = No
                           "name": names.get(cid) or fname, "edgar_name": fname, "cik": ",".join(ciks),
                           "sic": sic, "sector": sector_over.get(cid) or sector_for_sic(sic, sic_table),
                           "state_or_country": state, "is_us": state in US_STATES if state else None,
-                          "annual_form": filer, "ordinary_per_ads": adr.get(cid)})
+                          "annual_form": filer, "ordinary_per_ads": latest_adr.get(cid)})
     companies = pd.DataFrame(comp_rows)
     fundamentals = pd.concat([f for f in fund_frames if len(f)], ignore_index=True) if any(len(f) for f in fund_frames) \
         else fund_frames[0] if fund_frames else pd.DataFrame()
     shares = pd.concat([s for s in share_frames if len(s)], ignore_index=True) if any(len(s) for s in share_frames) \
-        else pd.DataFrame(columns=["company_id", "cik", "period_end", "shares", "accn", "available_utc"])
+        else pd.DataFrame(columns=SHARE_COLUMNS)
     filings_all = pd.concat(filing_frames, ignore_index=True) if filing_frames else pd.DataFrame()
 
     log.info("news")

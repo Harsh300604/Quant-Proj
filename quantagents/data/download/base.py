@@ -223,6 +223,9 @@ class Manifest:
         e = self._entries.get(self.rel(path))
         return e is not None and e.sha256 == sha256_file(path)
 
+    def entry(self, path: Path) -> ManifestEntry | None:
+        return self._entries.get(self.rel(path))
+
     def entries(self, source: str | None = None) -> list[ManifestEntry]:
         return [e for e in self._entries.values() if source is None or e.source == source]
 

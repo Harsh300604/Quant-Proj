@@ -39,7 +39,7 @@ def test_market_cap_uses_actual_traded_price_across_a_split(gw):
 def test_two_share_classes_summed(gw):
     w = gw.get_index_weights(cal.close_utc("2015-03-02")).set_index("company_id")
     p = gw.get_prices(["GOOGL"], cal.close_utc("2015-03-02"), lookback_days=3).iloc[-1]
-    assert w.loc["GOOGL", "mcap"] == pytest.approx(p["raw_close"] * 500.0)      # 400 + 100 shares
+    assert w.loc["GOOGL", "mcap"] == pytest.approx(p["raw_close"] * 500.0e6)    # 400m + 100m shares
 
 
 def test_total_return_includes_dividends(gw):
