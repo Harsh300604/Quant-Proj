@@ -19,7 +19,7 @@
 | Committee views | **All 20** (no selection step, no per-sector cap) (D42) | Up to 20 of ~100, at most 3 per sector |
 | Variants | Baseline, enhanced (Black-Litterman), names-hidden optional (D44) | Baseline, enhanced, names-hidden |
 | Needs Norgate? | **No** | Yes (D26) |
-| Funding | Dev tier on the personal key (Stage 0); paper-tier runs in Stage 1 (D43) | Stages 1–2 |
+| Funding | **MVP budget $40 on the student key** (D46): stop at $32, hard cap $40 | Stage 2 + contingency, within the $150 project cap |
 
 **The claim it supports:** "On the 20 largest NASDAQ-100 companies, 2021–2023, this is how the agent baseline and the Black-Litterman enhancement compare with simply holding those 20 at market weight."
 
@@ -53,15 +53,44 @@ Where a phase says "as in main Phase N", the file list, tasks and tests in `impl
 |---|---|---|---|
 | P0 | Laptop preparation and universe check | Main Phase 2 manual checks | $0 |
 | P1 | Phase 2 follow-ups and proto20 universe/benchmark | Main Phase 2 + new | $0 |
-| P2 | LLM layer and research memo | Main Phase 3 (unchanged) | < $0.02 personal |
+| P2 | LLM layer and research memo | Main Phase 3 (unchanged) | < $0.05 |
 | P3 | Constraints, optimizer, backtest engine (custom benchmark) | Main Phase 4 | $0 |
-| P4 | Full agent graph; pilot; proto20 2021 dev slice; forecast v1 → **Stage 0 gate** | Main Phase 5 | ≈ $0.4–0.5 personal |
-| P5 | Black-Litterman, enhanced variant, anonymizer (dev tier) | Main Phase 7 (code only) | ≈ $0.1–0.3 personal |
-| P6 | **Stage 1:** Sonnet pilot; evaluation; proto20 paper-tier runs | Main Phase 6 + 7 runs | Stage 1 (student key), forecast first |
+| P4 | Full agent graph; pilot; proto20 2021 dev slice; forecast v1 → **MVP checkpoint** | Main Phase 5 | ≈ $0.5–1 |
+| P5 | Black-Litterman, enhanced variant, anonymizer (dev tier) | Main Phase 7 (code only) | ≈ $0.2–0.5 |
+| P6 | Sonnet pilot; evaluation; proto20 paper-tier runs | Main Phase 6 + 7 runs | ≈ $30–33, forecast first |
 | P7 | Professor pack | Main Phase 8 (subset) | $0 |
-| → | Back to the main plan: Norgate import, full runs | `implementation_plan.md` Phase 6 onward | Stage 2 |
+| → | Back to the main plan: Norgate import, full runs | `implementation_plan.md` Phase 6 onward | Stage 2 (separate approval) |
 
-All dollar figures are planning estimates. The forecast at the end of P4 replaces them with measured numbers.
+All dollar figures are planning estimates (see the MVP budget section below). The forecast at the end of P4 replaces them with measured numbers.
+
+---
+
+## MVP budget (D46; replaces D43)
+
+The student has supplied their Anthropic key, with a **$200 limit set in the Anthropic Console**. The whole prototype runs on that key, and the personal key isn't used. That $200 is only an outer safety net. **The prototype may spend at most $40**, enforced by the cost ledger.
+
+| Item | Estimate | Run budget (`run_budget_usd`) |
+|---|---|---|
+| P2–P5 development, pilots and the proto20 2021 dev slice (Haiku) | ≈ $1–2 | $1 per run |
+| P6 Sonnet measurement pilot (thinking off vs. on, 2–3 rebalances × 5 stocks) | ≈ $2–3 | $4 |
+| P6 proto20 baseline, 2021–2023, `paper` tier | ≈ $9 | $12 |
+| P6 proto20 enhanced, 2021–2023, `paper` tier | ≈ $9 | $12 |
+| P6 proto20 names-hidden enhanced (optional, D44) | ≈ $9 | $12 |
+| Reruns after prompt fixes (debugging stays on small slices) | ≈ $2–4 | — |
+| **Total** | **≈ $32–36** | **MVP cap $40** |
+
+**How the estimate was made:** current prices are Haiku 5.5 at $0.10 / $0.50 and Sonnet 5.5 at $2 / $10 per million input/output tokens. The token counts per rebalance come from brief §8:
+- 20 memos at about 2k input / 0.4k output each, about $0.01 in total;
+- the committee at about 84k input / 7k output with thinking off, about $0.24.
+
+That's about $0.25 per rebalance, or about $9 for 36 rebalances. Prompt caching should lower this. It's still an estimate, and **forecast v1 (end of P4) replaces it with measured numbers.**
+
+**Rules:**
+1. The ledger budget for this track is **$40** (stage `proto20` on key label `student`). Calls **stop automatically at $32 (80%)**. Going past $32 needs the user's explicit yes, and **nothing ever goes past $40**.
+2. **Committee thinking stays off** (`between_tools`). With thinking on, each 36-month run costs roughly 2.5× as much (about $22), which doesn't fit. If the P6 pilot shows a clear quality gain, report it with the cost and let the user decide on a higher cap. Don't switch it on yourself.
+3. Before every paid run, give the estimate in USD and INR and wait for a yes. If measured costs make the table above not fit in $40, stop and ask. Never shorten the period or drop a variant on your own.
+4. The rest of the key's limit is **not** part of the prototype. The full run (main plan Stage 2 and contingency) stays inside the brief's $150 project cap and needs its own forecast and approval. The extra $50 the student allowed above $150 is never used without explicit approval.
+5. Spend so far, the remaining budget and the cache hit rate are reported in every phase summary from P2 on.
 
 ---
 
@@ -109,6 +138,11 @@ All dollar figures are planning estimates. The forecast at the end of P4 replace
 - `quantagents/eval/benchmarks.py` (new): `custom_cap_index(gateway or store, companies, start, end)` gives daily weights (renormalised from `index_weights` to the chosen companies) and daily total return. It uses the same timing as `quality.index_vs_benchmark`: the weights at the close of t−1 apply to the returns on t.
 - `reference/proto20_universe.csv`: the frozen list (company_id, name, sector, weight on 2021-01-04), produced by a script from the laptop's store and committed. It contains no licensed data, only names and weights derived from public filings.
 - `scripts/proto20_universe.py`: prints and writes the frozen list. `--check` fails if the live rule no longer matches the frozen file.
+- `configs/stages.yaml` (D46): add stage `proto20` (key label `student`, `budget_usd: 40.00`, `stop_fraction: 0.80`).
+  - Remove `stage1`, because the Sonnet pilot moved into proto20.
+  - Lower `contingency` to `20.00`. The student stages then total $150 (proto20 40 + stage2 90 + contingency 20), which passes the existing $150 check in `load_stage_budgets`.
+  - Update the comment in `configs/keys.yaml`: the student key's Console limit is $200, but the project cap stays $150.
+  - Test: `proto20` loads; student stages total ≤ $150; a ledger at $32 stops calls.
 - `configs/proto20.yaml`:
   ```yaml
   extends: base.yaml
@@ -118,9 +152,9 @@ All dollar figures are planning estimates. The forecast at the end of P4 replace
   benchmark: {mode: custom_cap_index}      # constraints and active metrics vs the same 20
   selection: {max_views: 20, max_per_sector: null}
   models: {tier: dev}
-  budget: {key_label: personal, stage: stage0, run_budget_usd: 0.50, inr_per_usd: 88.0}
+  budget: {key_label: student, stage: proto20, run_budget_usd: 1.00, inr_per_usd: 88.0}
   ```
-- `configs/proto20_2021.yaml`: the same, with `dates.end: 2021-12-31` (the Stage 0 slice).
+- `configs/proto20_2021.yaml`: the same, with `dates.end: 2021-12-31` (the dev slice).
 
 **Tests:**
 - `test_universe.py`:
@@ -178,17 +212,22 @@ python -m quantagents.engine.backtest --config configs\proto20.yaml --strategy h
 
 ---
 
-## P4: Full agent graph, pilot and the Stage 0 gate
+## P4: Full agent graph, pilot and the MVP checkpoint
 
 As in **main Phase 5** (D32–D35 included: simulated trading for Bob, risk stats for Dave, track-record memory, paper persona wording), with these changes:
 - **Selection:** when the universe is at most `max_views` and `max_per_sector` is null, every company gets a view and the "one-liners for the rest" list is empty. `test_selection.py` gets this case.
 - **Dave's risk stats and Bob's simulated trading** are computed against the configured benchmark (the proto20 index here).
 - **The track record** starts empty in Jan 2021 and fills from April 2021, because only fully known 3-month outcomes count. The transcript says so.
-- **Stage 0 slice:** `configs/proto20_2021.yaml`, baseline, dev tier, 12 rebalances. It replaces the main plan's "20 stocks × 12 months" slice at the same estimated cost of about $0.35, and must be **asked first**.
+- **Dev slice:** `configs/proto20_2021.yaml`, baseline, dev tier, 12 rebalances. It replaces the main plan's "20 stocks × 12 months" slice. Estimated cost is well under $1 at current Haiku prices; **ask first**.
 - **Cost forecast v1** (`docs/cost_forecast.md`) includes:
   - proto20 2021–2023 on the `paper` tier for baseline, enhanced and names-hidden;
   - the main full runs.
-- **Stage 0 gate** as in the main plan's Funding stages section. The ask for Stage 1 is based on this forecast.
+- **MVP checkpoint** instead of the Stage 0 gate. Report:
+  - what was built and the evidence that it works;
+  - spend so far vs. the $40 MVP budget;
+  - forecast v1 for the P6 runs.
+
+  The user approves P6 based on this forecast.
 
 **Manual checks:** as in main Phase 5 (pilot run, rerun from cache, read a transcript), plus:
 ```powershell
@@ -208,15 +247,15 @@ As in **main Phase 7**, files and tests only: `black_litterman.py`, `otto_enhanc
 
 Runs in this phase:
 - the 5-stock pilot for enhanced and names-hidden, on the dev tier;
-- optionally proto20 2021 enhanced on the dev tier, if the Stage 0 budget allows (asked first).
+- optionally proto20 2021 enhanced on the dev tier (asked first; well under $1).
 
 **Extra test:** Black-Litterman with no views returns the benchmark weights exactly. This is the "no view = market weight" property we explain to the parents.
 
 ---
 
-## P6: Stage 1 runs and evaluation
+## P6: Paper-tier runs and evaluation
 
-**Starts only** after the user confirms that Stage 1 (about $20) is approved and the student key is in `.env`. Then set `budget.key_label: student` and `budget.stage: stage1`, following the README key swap checklist.
+**Starts only** after the user approves the P6 forecast from the MVP checkpoint. Everything stays inside the $40 MVP budget (D46). The `paper` tier configs keep `budget.key_label: student` and `budget.stage: proto20`, and each run gets `run_budget_usd` from the MVP budget table.
 
 **Tasks:**
 - [ ] Sonnet measurement pilot (thinking off vs. on), as in main Phase 6 (asked first)
@@ -230,7 +269,7 @@ Runs in this phase:
 - [ ] Re-issued forecast for the proto20 `paper` runs, then ask
 - [ ] **proto20 baseline**, 2021–2023, `paper` tier (`configs/proto20_paper_baseline.yaml`, after the go-ahead)
 - [ ] **proto20 enhanced**, 2021–2023, `paper` tier (after the go-ahead)
-- [ ] **proto20 names-hidden enhanced** (optional, D44; only if the forecast fits Stage 1)
+- [ ] **proto20 names-hidden enhanced** (optional, D44; only if the forecast fits the $40 MVP budget)
 - [ ] Three-way table and growth-of-$1 chart: proto20 index, baseline, enhanced, (names-hidden), with QQQ and ^NDX as reference lines
 
 **Honesty notes the report must print:**
@@ -238,7 +277,7 @@ Runs in this phase:
 - Survivorship: the universe was chosen on 2021-01-04 from that day's data, so there's no hindsight in the choice. Results are not comparable to the full NASDAQ-100.
 - Names-hidden on 20 mega-caps is a weak control, because descriptions like "large-cap consumer electronics" identify the company. It is labelled as such (D44).
 
-If the forecast shows that Stage 1 can't cover all proto20 runs, stop and ask. Don't shorten the period or drop a variant without the user's approval.
+If the forecast shows that the $40 MVP budget can't cover all proto20 runs, stop and ask. Don't shorten the period or drop a variant without the user's approval.
 
 ---
 

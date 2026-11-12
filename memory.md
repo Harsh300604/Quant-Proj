@@ -22,6 +22,8 @@ _Last updated: 2026-11-06 (handover point: this chat ends here; a new dev chat c
 
 Active stage: **Stage 0** (personal key). Funding policy in `implementation_plan.md` → "Funding stages" (decision D22).
 
+> **Update 12 Nov (D46, `decisions_20.md`):** the student has sent their key (Console limit $200). The 20-stock prototype runs on it with an **MVP budget of $40** (ledger stage `proto20`, auto-stop at $32). `stage1` is removed and `contingency` lowered to $20, so the student stages still total $150. The personal key is no longer used. The table below is the original plan for the full run.
+
 | Stage | Key label | Spent | Budget | Auto-stop | Status |
 |---|---|---|---|---|---|
 | 0 | personal | $0.00 | $3.00 | $2.40 | active |

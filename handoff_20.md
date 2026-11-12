@@ -3,7 +3,7 @@
 Section 1 is the user's laptop preparation, done before the dev chat starts. Section 2 is the prompt to paste into the dev chat.
 The general handoff (`handoff.md`) still applies; this file only adds the prototype track.
 
-_Last updated: 2026-11-06._
+_Last updated: 2026-11-12 (student key with $200 limit; MVP budget $40, D46)._
 
 ---
 
@@ -72,18 +72,18 @@ Expected:
 
 Save the 2021-01-04 output and the data report output, because the dev chat needs both.
 
-**9. Add your personal Anthropic key.** This is the Stage 0 key with ₹300.
-- In the Anthropic Console, make sure this key's workspace has a spend limit no higher than the ₹300 credit.
-- Then add the key to `.env`:
+**9. Add the student's Anthropic key.** It has a $200 limit in the Anthropic Console. The prototype may use at most **$40** of it (D46), and the cost ledger enforces that.
+- **Optional but recommended:** ask the student to lower the key's Console spend limit to **$50** while the prototype is built, as a second safety net. It can be raised again for the full run.
+- Add the key to `.env`:
   ```powershell
   notepad .env
   ```
-  Put the key after `ANTHROPIC_API_KEY=`, then save and close. Never paste the key into a chat.
+  Put the key after `ANTHROPIC_API_KEY=`, replacing any personal key that's there. Save and close. Never paste the key into a chat.
 - Check it:
   ```powershell
   python scripts\check_env.py
   ```
-  Expected: the `ANTHROPIC_API_KEY` line shows as set. The value is never printed.
+  Expected: the `ANTHROPIC_API_KEY` line shows as set. The value is never printed. Until the dev chat has updated `configs/base.yaml` in P1, `check_env` may still say the budget label is `personal`. That's fine, because no API calls happen before P2.
 
 **10. Start the local dev chat** from the same prepared window (see `handoff.md` section 1a for installing Claude Code).
 ```powershell
@@ -114,7 +114,7 @@ REPOSITORY AND BRANCH
 READ FIRST, IN THIS ORDER (before doing anything else)
 1. memory_20.md            - prototype state and next steps (START HERE)
 2. implementation_plan_20.md - the prototype plan: P0-P7, files, tests, manual checks
-3. decisions_20.md         - prototype decisions D38-D45
+3. decisions_20.md         - prototype decisions D38-D46 (D46 = MVP budget)
 4. memory.md               - general project state, environment, preferences, funding table
 5. handoff.md              - working method, rules, mentoring plan (sections 3-4 are rules)
 6. implementation_plan.md  - the main plan; proto20 phases say "as in main Phase N", so the
@@ -162,7 +162,7 @@ HOW TO WORK
 - Never re-open the brief's section 4 decisions, decisions.md or decisions_20.md. Ask me when
   unsure; do not guess.
 - One P-phase at a time: build, run its tests, tick implementation_plan_20.md, update memory_20.md
-  (and decisions_20.md for any new decision, numbered from D46), commit and push, then stop and
+  (and decisions_20.md for any new decision, numbered from D47), commit and push, then stop and
   give me: what was built, test results, manual checks (commands, expected output, pass/fail),
   anything I must provide. Wait for my confirmation before the next phase.
 - Edit the _20 documents for prototype work. Only touch implementation_plan.md / memory.md /
@@ -179,12 +179,24 @@ API AND MONEY
   prompt caching, SQLite response cache keyed WITHOUT the API key, cost ledger with per-key and
   per-stage budgets (configs/keys.yaml, configs/stages.yaml), automatic stop at 80%. Read the Claude
   API docs/skill before writing API code; do not guess SDK signatures.
-- Funding stages (D22, D43): Stage 0 = my personal key, Rs 300 (budget $3.00, auto-stop $2.40),
-  Haiku only: development, the 5-stock pilot and the proto20 2021 dev slice. proto20 2021-2023
-  paper-tier runs happen only in Stage 1 (student key, ~$20), after a measured forecast and my
-  go-ahead. Before any API step beyond a few test calls: give the estimated cost in USD and INR
-  and wait for my yes. If the forecast does not fit, stop and ask; never shorten the period or drop
-  a variant on your own.
+- MVP BUDGET (D46; read "MVP budget" in implementation_plan_20.md): the key in .env is the
+  STUDENT's key. Its Anthropic Console limit is $200, but that is only an outer safety net. The whole
+  prototype may spend AT MOST $40 USD (about Rs 3,500), across all phases, pilots, runs and reruns.
+  - In P1, add ledger stage `proto20` (key label `student`, budget $40, stop_fraction 0.80) to
+    configs/stages.yaml; remove `stage1`; set `contingency` to $20 (student stages total = $150).
+    All proto20 configs use key_label student, stage proto20. The personal key is not used.
+  - Calls stop automatically at $32 (80%). Going past $32 needs my explicit yes; NEVER go past $40.
+  - Planned split: development/pilots/dev slices on Haiku ~$1-2; Sonnet pilot ~$2-3 (run budget $4);
+    proto20 baseline, enhanced and (optional) names-hidden 2021-2023 paper runs ~$9 each (run
+    budget $12 each); reruns ~$2-4. Debug only on small slices, never on a full run.
+  - Committee thinking stays OFF (`between_tools`); thinking on costs ~2.5x and does not fit. If the
+    Sonnet pilot shows a clear gain, report it with the cost and let me decide.
+  - Before every paid run: estimate in USD and INR, spend so far, remaining MVP budget; wait for my
+    yes. Report spend, remaining budget and cache hit rate in every phase summary from P2 on.
+  - If measured costs show the plan will not fit in $40, stop and ask; never shorten the period,
+    drop a variant or raise a budget on your own.
+  - The rest of the key's limit belongs to the later full run (main plan Stage 2 + contingency,
+    within the $150 project cap) and needs its own forecast and my approval.
 
 MENTORING (FINAL PHASE)
 - After the build, I mentor a student over 16 sessions of 60 minutes; docs/mentoring.md is written
