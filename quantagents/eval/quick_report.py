@@ -45,7 +45,8 @@ def stats(nav: pd.Series, rf: pd.Series | None, bench: pd.Series | None = None) 
     return out
 
 
-def svg_chart(lines: dict[str, pd.Series], width: int = 760, height: int = 320) -> str:
+def svg_chart(lines: dict[str, pd.Series], width: int = 760, height: int = 320, colors: dict | None = None) -> str:
+    colors = colors or COLORS
     pad_l, pad_r, pad_t, pad_b = 48, 12, 12, 28
     allv = pd.concat(lines.values())
     lo, hi = float(allv.min()), float(allv.max())
@@ -64,7 +65,7 @@ def svg_chart(lines: dict[str, pd.Series], width: int = 760, height: int = 320) 
             parts.append(f'<text x="{x(d):.1f}" y="{height - 8}" text-anchor="middle">{yr}</text>')
     for name, s in lines.items():
         pts = " ".join(f"{x(d):.1f},{y(v):.1f}" for d, v in s.items())
-        parts.append(f'<polyline points="{pts}" fill="none" stroke="{COLORS.get(name, "gray")}" stroke-width="2"/>')
+        parts.append(f'<polyline points="{pts}" fill="none" stroke="{colors.get(name, "gray")}" stroke-width="2"/>')
     parts.append("</svg>")
     return "".join(parts)
 
