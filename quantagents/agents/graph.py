@@ -202,14 +202,15 @@ def weights_for(inp: GraphInputs, cfg, decision: dict, variant: str, sigma) -> t
     ratings + confidence -> Black-Litterman -> the same constraints (enhanced)."""
     if variant == "enhanced":
         from quantagents.portfolio.black_litterman import bl_weights
-        return bl_weights(inp.constraints, sigma, decision, dict(cfg.views.rating_to_excess_return),
-                          cfg.black_litterman.delta, cfg.black_litterman.tau)
+        b = cfg.black_litterman
+        return bl_weights(inp.constraints, sigma, decision, dict(cfg.views.rating_to_excess_return), b.delta, b.tau,
+                          te_budget=b.te_budget_annual, hold_is_view=b.hold_is_view)
     return weights_from_multipliers(inp.constraints, pd.Series(decision, dtype=float)), {}
 
 
 def proposal_lines(decision: dict, w: pd.Series, bench: pd.Series, variant: str) -> list[str]:
     if variant == "enhanced":
-        rated = [(c, r, conf) for c, (r, conf) in decision.items() if conf > 0 and r != "hold"]
+        rated = [(c, r, conf) for c, (r, conf) in decision.items() if conf > 0 and r != "hold"]   # holds: no view
         lines = ["Black-Litterman and the portfolio rules turn the draft views into these weights "
                  "(view -> weight as a multiple of benchmark weight):"]
         lines += [f"- {c}: {r} (confidence {conf:.1f}) -> x{float(w[c] / bench[c]):.2f}" for c, r, conf in rated]
@@ -234,13 +235,17 @@ def overweight_intent(decision: dict, variant: str) -> set[str]:
 
 def check_draft(inp: GraphInputs, cfg, decision: dict, stats: dict, dave: dict | None, variant: str = "baseline",
                 sigma=None) -> str:
-    w, _ = weights_for(inp, cfg, decision, variant, sigma)
+    w, det = weights_for(inp, cfg, decision, variant, sigma)
     bench = inp.bench
     allc = sorted(set(w.index) | set(inp.holdings))
     cur = pd.Series(inp.holdings, dtype=float).reindex(allc).fillna(0.0)
     trade = lambda target: float((target.reindex(allc).fillna(0.0) - cur).abs().sum())  # noqa: E731
     turnover = trade(w)          # same definition as the engine: sum of |trades| / portfolio value
     lines = proposal_lines(decision, w, bench, variant)
+    if variant == "enhanced" and det.get("views_used"):
+        lines.append(f"Risk budget: with full confidence these views would use the whole "
+                     f"{cfg.black_litterman.te_budget_annual:.1%} a year of active risk; at your confidences they use "
+                     f"about {det['active_risk_before_rules']:.2%} (before the portfolio rules). 'hold' counts as no view.")
     sw = pd.DataFrame({"w": w, "b": bench, "s": inp.sectors.reindex(w.index)}).groupby("s")[["w", "b"]].sum()
     lines.append("Sector weights after the rules (portfolio vs benchmark): " +
                  "; ".join(f"{s} {r.w:.2%} vs {r.b:.2%}" for s, r in sw.sort_values("b", ascending=False).iterrows()))

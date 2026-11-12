@@ -135,6 +135,10 @@ class BlackLitterman(Strict):
     tau: float = Field(gt=0)
     omega: Literal["idzorek"] = "idzorek"
     cov: Literal["ledoit_wolf_252d"] = "ledoit_wolf_252d"
+    # D54 risk budget: tilts are scaled so that, with every view at full confidence, the expected active
+    # risk (tracking error) is this much a year; lower confidence gives proportionally smaller bets
+    te_budget_annual: float = Field(default=0.02, gt=0, le=0.5)
+    hold_is_view: bool = False       # D54: "hold" = no view (Otto is told to use it when evidence is weak)
 
 
 class TierModels(Strict):

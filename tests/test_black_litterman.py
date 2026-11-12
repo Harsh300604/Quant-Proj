@@ -43,6 +43,28 @@ def test_buy_raises_sell_lowers_and_confidence_scales():
         assert cs.violations(w.to_numpy()) == []
 
 
+def test_risk_budget_full_confidence_uses_the_budget_and_confidence_scales_linearly():
+    from quantagents.portfolio.black_litterman import active_risk_annual
+    cs, sigma = setup()
+    views = {"C0": ("buy", 1.0), "C3": ("sell", 1.0), "C7": ("strong_buy", 1.0)}
+    w, d = bl_weights(cs, sigma, views, TABLE, 2.5, 0.05, te_budget=0.02)
+    tilt = np.array(list(d["unconstrained_multiplier"].values())) * cs.bench - cs.bench
+    assert active_risk_annual(tilt, sigma) == pytest.approx(0.02, rel=1e-9)
+    _, half = bl_weights(cs, sigma, {"C5": ("buy", 0.5)}, TABLE, 2.5, 0.05, te_budget=0.02)
+    _, full = bl_weights(cs, sigma, {"C5": ("buy", 1.0)}, TABLE, 2.5, 0.05, te_budget=0.02)
+    b5 = cs.bench[list(cs.companies).index("C5")]
+    assert (half["unconstrained_multiplier"]["C5"] - 1) * b5 == pytest.approx(0.5 * (full["unconstrained_multiplier"]["C5"] - 1) * b5)
+
+
+def test_hold_is_no_view_by_default():
+    cs, sigma = setup()
+    a, _ = bl_weights(cs, sigma, {"C5": ("buy", 0.6)}, TABLE, 2.5, 0.05)
+    b, d = bl_weights(cs, sigma, {"C5": ("buy", 0.6), "C1": ("hold", 0.9), "C2": ("hold", 0.4)}, TABLE, 2.5, 0.05)
+    assert d["views_used"] == 1 and np.abs(a.to_numpy() - b.to_numpy()).max() < 1e-12
+    _, d2 = bl_weights(cs, sigma, {"C1": ("hold", 0.9)}, TABLE, 2.5, 0.05, hold_is_view=True)
+    assert d2["views_used"] == 1
+
+
 def test_idzorek_limits():
     sigma = np.array([[0.004, 0.001], [0.001, 0.003]])
     P = np.array([[1.0, 0.0]])

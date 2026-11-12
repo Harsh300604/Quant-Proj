@@ -91,20 +91,60 @@ def optimise(cs: ConstraintSet, mu: np.ndarray, sigma: np.ndarray, delta: float)
     return w
 
 
+def unconstrained_tilts(sigma: np.ndarray, P: np.ndarray, Q: np.ndarray, omega: np.ndarray, pi: np.ndarray,
+                        delta: float, tau: float) -> np.ndarray:
+    """He & Litterman (1999): the unconstrained optimum (delta Sigma)^-1 mu_BL equals the benchmark
+    plus P' x lambda, i.e. tilts ONLY on the companies with a view:
+    lambda = (tau / delta) (P tau Sigma P' + Omega)^-1 (Q - P pi)."""
+    if len(Q) == 0:
+        return np.zeros(sigma.shape[0])
+    lam = (tau / delta) * np.linalg.solve(P @ (tau * sigma) @ P.T + omega, Q - P @ pi)
+    return P.T @ lam
+
+
+def active_risk_annual(tilt: np.ndarray, sigma_monthly: np.ndarray) -> float:
+    return float(np.sqrt(max(tilt @ sigma_monthly @ tilt, 0.0) * 12))
+
+
 def bl_weights(cs: ConstraintSet, sigma: np.ndarray, views: dict[str, tuple[str, float]], rating_table: dict,
-               delta: float, tau: float) -> tuple[pd.Series, dict]:
-    """``views``: {company: (rating, confidence)}. Returns (weights, details for the transcript)."""
+               delta: float, tau: float, method: str = "he_litterman", te_budget: float | None = 0.02,
+               hold_is_view: bool = False) -> tuple[pd.Series, dict]:
+    """``views``: {company: (rating, confidence)}. Returns (weights, details for the transcript).
+
+    ``method``: "he_litterman" (default, D54): benchmark + BL tilts on the rated companies, scaled to
+    the risk budget, then the baseline's projection onto the constraints (relative distance, D50);
+    "mvo": full constrained mean-variance optimisation (D52's first version; kept for comparison).
+
+    Risk budget (D54): with the brief's default rating table, delta and tau, the raw BL tilts are many
+    times a company's weight (every view would hit 0x or 2x). All tilts are multiplied by one factor k,
+    chosen so that the SAME views at full confidence would have an expected active risk of
+    ``te_budget`` a year. Directions, relative sizes and the effect of confidence are kept (one view:
+    tilt proportional to confidence). ``te_budget=None`` = no scaling (raw BL tilts)."""
     ids = list(cs.companies)
     pi = implied_returns(sigma, cs.bench, delta)
-    rated = [(c, r, float(conf)) for c, (r, conf) in views.items() if c in ids and float(conf) > 0]
+    rated = [(c, r, float(conf)) for c, (r, conf) in views.items()
+             if c in ids and float(conf) > 0 and (hold_is_view or r != "hold")]
     P = np.zeros((len(rated), len(ids)))
     Q = np.zeros(len(rated))
-    for k, (c, r, _) in enumerate(rated):
+    for row, (c, r, _) in enumerate(rated):
         i = ids.index(c)
-        P[k, i] = 1.0
-        Q[k] = pi[i] + rating_table[r] / 3.0
+        P[row, i] = 1.0
+        Q[row] = pi[i] + rating_table[r] / 3.0
     omega = idzorek_omega(P, sigma, tau, np.array([c for _, _, c in rated])) if rated else np.zeros((0, 0))
     mu = posterior(pi, sigma, P, Q, omega, tau)
-    w = optimise(cs, mu, sigma, delta)
-    details = {"prior_monthly": dict(zip(ids, pi)), "posterior_monthly": dict(zip(ids, mu)), "views_used": len(rated)}
+    k = 1.0
+    if method == "mvo":
+        w = optimise(cs, mu, sigma, delta)
+        target = w
+    else:
+        tilt = unconstrained_tilts(sigma, P, Q, omega, pi, delta, tau)
+        if te_budget is not None and rated:
+            full = unconstrained_tilts(sigma, P, Q, idzorek_omega(P, sigma, tau, np.ones(len(rated))), pi, delta, tau)
+            te_full = active_risk_annual(full, sigma)
+            k = te_budget / te_full if te_full > 0 else 0.0
+        target = cs.bench + k * tilt
+        w = project(cs, target, cs.projection)
+    details = {"prior_monthly": dict(zip(ids, pi)), "posterior_monthly": dict(zip(ids, mu)), "views_used": len(rated),
+               "unconstrained_multiplier": dict(zip(ids, target / cs.bench)), "method": method, "scale": k,
+               "active_risk_before_rules": active_risk_annual(target - cs.bench, sigma)}
     return pd.Series(w, index=ids), details
