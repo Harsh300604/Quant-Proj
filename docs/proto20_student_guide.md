@@ -270,7 +270,17 @@ _(Later phases are added here as they are built.)_
 
 ## 7. Results
 
-_(Filled in after the paper-tier runs in phase P6.)_
+**Baseline, 2021–2023, final model mix** (research memos on Haiku, committee on Sonnet), 36 monthly decisions, cost $7.96:
+
+| | Total | 2021 | 2022 | 2023 | Sharpe | Worst fall |
+|---|---|---|---|---|---|---|
+| AI committee (baseline) | +42.6% | +35.6% | −37.4% | +68.0% | 0.49 | −40.3% |
+| Benchmark (same 20, market weight) | +42.8% | +35.5% | −37.6% | +68.9% | 0.49 | −40.5% |
+| QQQ (reference) | +34.9% | +29.3% | −32.6% | +54.9% | 0.44 | −35.1% |
+
+**What it means, honestly:** the committee ended almost exactly level with the benchmark (0.2 points behind, well inside the uncertainty range). It was very cautious: in 559 of its 720 company decisions it kept the normal weight, so it never strayed far (0.59% tracking error) and trading costs stayed small (0.3% over 3 years). Its views had only a weak link to what happened next (rank IC +0.09). So in this test the baseline AI committee neither helped nor hurt. That is a fair and useful result: careful AI agents with strict rules behave like the index. The enhanced version is tested next on exactly the same data.
+
+_(The enhanced and names-hidden results are added after their runs.)_
 
 ## 8. Limitations to state honestly
 

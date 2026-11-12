@@ -307,7 +307,10 @@ Runs in this phase:
 **Starts only** after the user approves the P6 forecast from the MVP checkpoint. Everything stays inside the $40 MVP budget (D46). The `paper` tier configs keep `budget.key_label: student` and `budget.stage: proto20`, and each run gets `run_budget_usd` from the MVP budget table.
 
 **Tasks:**
-- [ ] Sonnet measurement pilot (thinking off vs. on), as in main Phase 6 (asked first)
+- [x] Sonnet measurement pilot (thinking off vs. on): $0.2449 each, no difference; thinking stays off (D55)
+- [x] Evaluation code (`eval/metrics.py`, `eval/factors.py`, `eval/report.py`), forecast v2 (P6 runs ≈ $23.8)
+- [x] **proto20 baseline** (13 Nov): +42.61% vs the same-20 index's +42.84% (QQQ +34.94%); tracking error 0.59%, information ratio −0.16 (90% CI −1.00 to +0.69), active Carhart alpha −0.15% (t −0.46); turnover 7.6% a month; red flags 0; $7.96. 559 of 720 views at x1.0; rank IC +0.09
+- [ ] proto20 enhanced; [ ] names-hidden enhanced (optional); [ ] three-way report
 - [ ] Evaluation code as in main Phase 6:
   - metrics with ENT/ENB;
   - Carhart regression with Newey-West;
