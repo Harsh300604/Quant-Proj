@@ -285,6 +285,13 @@ python -m quantagents.engine.backtest --config configs\proto20_2021.yaml --strat
 
 ## P5: Black-Litterman, enhanced variant and anonymizer (code; dev tier only)
 
+**Status: done 13 Nov 2026** (decisions D52–D54; 442 tests).
+- [x] `portfolio/black_litterman.py` (numpy; He-Litterman tilts with a 2% risk budget, hold = no view, D54); `otto_enhanced_v1.txt`, `otto_enhanced_decision_v1.txt`, the enhanced answer schema; `variant: enhanced` in the graph
+- [x] `agents/anonymize.py` with `--scan`; every LLM input saved under `runs/<id>/llm_inputs/`; `reference/name_aliases.csv`
+- [x] `eval/view_accuracy.py`; tests: Black-Litterman, anonymizer, fairness, view accuracy
+- [x] Pilots: `pilot_enh_dev` (after D54: turnover 3%/1.6%, no red flags) and `pilot_enh_hidden_dev` (leak scan: 0 of 33 inputs with a real name)
+- [x] `proto20_2021_enh_dev`: +35.83% (baseline slice +36.82%, same-20 index +35.46%), tracking error 0.56%, red flags 0, $0.1335. Ratings in the right order (strong sell −15.7%, sell −5.3%, hold −1.7%, buy +1.6% vs the index), rank IC +0.22
+
 As in **main Phase 7**, files and tests only: `black_litterman.py`, `otto_enhanced_v1.txt` and the `EnhancedViews` schema, `anonymize.py` with a leak scan, and `view_accuracy.py`. Black-Litterman uses the proto20 index weights as the market prior.
 
 Runs in this phase:

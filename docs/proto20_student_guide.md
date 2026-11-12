@@ -221,6 +221,39 @@ Holding the benchmark almost exactly reproduces the benchmark, which shows the s
 - **Honest reading:** being 1.4 points ahead after one year is well within luck. One example: the committee held Tesla at half weight all year while Tesla rose faster than the benchmark. Its track record says 60% of its views were "right", but that's flattered by 2021's pattern. The biggest companies led the market, so most smaller stocks lagged the benchmark whatever the committee thought of them.
 - **Cost:** $0.27 (about Rs 24) for the whole year of meetings, using the cheap model. With the stronger model planned for the real runs, a year costs about $2.70, and the full 3 years about $8 per version.
 
+### P5: the "enhanced" committee and the names-hidden test (13 Nov 2026)
+
+**Enhanced version.** Instead of choosing a multiplier, Otto rates each stock (strong sell, sell, hold, buy, strong buy) and says how confident he is, from 0 to 1. Python turns that into weights with the **Black-Litterman model**, a standard method used by real fund managers:
+1. Start from what the market "implies" each stock will return. If nobody has a view, the best portfolio is simply the benchmark.
+2. Blend in the committee's views, weighted by its confidence.
+3. Tilt the portfolio only towards the rated stocks, then apply the same rules as the baseline.
+
+**Two problems found in the trial, and the fixes:**
+- **Wrong direction:** the first version re-optimised the whole portfolio, and a "buy" could end up at zero. It now starts from the benchmark and only tilts the rated stocks.
+- **Bets far too big:** with the textbook settings, a mild "buy" asked for 19 times a stock's normal weight, so every view hit a limit and confidence didn't matter. We now use a **risk budget**: all bets are shrunk together so that, at full confidence, the portfolio would differ from the benchmark by about 2% a year. Lower confidence gives proportionally smaller bets. Monthly trading fell from about 45% to about 2%.
+
+**Names-hidden test.** The AI might "remember" how Apple did in 2021. So in one run every name, ticker, brand and CEO name is replaced with a code like "Company X002", and Python translates the answers back. A scan of every text sent to the AI found no real names (33 of 33 clean). It's still a weak test for giant companies: a market value of $752 billion gives Apple away anyway, and we say so.
+
+**View accuracy.** After a run, Python checks how each kind of view turned out. For each type of view it reports the average result against the benchmark and how often the view was right. It also reports a "rank IC": a score from −1 to 1 for whether stronger views did better, where 0 means no skill.
+
+**First comparison: 2021, all 20 companies, cheap AI model.**
+
+| | Baseline (multipliers) | Enhanced (ratings + Black-Litterman) | Benchmark (same 20) | QQQ |
+|---|---|---|---|---|
+| Total return 2021 | +36.8% | +35.8% | +35.5% | +29.3% |
+| Difference from the benchmark (tracking error) | 1.35% a year | 0.56% a year | – | – |
+
+How the enhanced committee's ratings turned out (3 months later, compared with the benchmark):
+
+| Rating | How many | Average result vs benchmark | How often right |
+|---|---|---|---|
+| strong sell | 3 | −15.7% | 67% |
+| sell | 56 | −5.3% | 66% |
+| hold | 123 | −1.7% | – |
+| buy | 58 | +1.6% | 62% |
+
+The ratings line up in the right order, from worst to best. But Otto's confidence was usually low, so the risk budget turned the views into very small bets. The portfolio barely differed from the benchmark (0.56%), so good views added little. One year on the cheap model proves nothing either way; the real test is P6 (3 years, stronger model).
+
 _(Later phases are added here as they are built.)_
 
 **Every problem we found, and how we fixed it**, is listed in `docs/proto20_problems_log.md`. It's good material for the "how do you know your numbers are right?" part of a presentation.

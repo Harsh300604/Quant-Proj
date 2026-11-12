@@ -3,19 +3,19 @@
 Short, factual and always up to date for the prototype track. Update it at the end of every P-phase, before pushing.
 The general project state (Phase 1 facts, environment, preferences, funding table) is in `memory.md` and still applies.
 
-_Last updated: 2026-11-13 (P4 done: MVP checkpoint; waiting for the user's go-ahead for P5)._
+_Last updated: 2026-11-13 (P5 done; waiting for the user's go-ahead for P6)._
 
 ## Where we are
 
 | Item | State |
 |---|---|
-| Plan | `implementation_plan_20.md` (approved 6 Nov 2026); decisions D38–D51 in `decisions_20.md` |
+| Plan | `implementation_plan_20.md` (approved 6 Nov 2026); decisions D38–D54 in `decisions_20.md` |
 | Main plan position | Phase 1 closed; Phase 2 done except ADR ratios for AZN/VIP/VOD and the delisted-price importer (both full run); Phases 3, 4 and 5 built (as proto20 P2, P3, P4) |
-| Current P-phase | P0–P3 done (confirmed); **P4 done: MVP checkpoint reported 13 Nov, waiting for the user's go-ahead**; next is P5 (Black-Litterman, enhanced variant, anonymizer; dev tier) |
-| Tests | 425 pass |
+| Current P-phase | P0–P3 done (confirmed); P4 done (MVP checkpoint); **P5 done 13 Nov, waiting for the user's go-ahead for P6** (Sonnet pilot, evaluation, paper-tier runs; forecast v1 = about $26.7) |
+| Tests | 442 pass |
 | Session | Local Claude Code session on the laptop: it runs tests, the ETL and small downloads itself; it asks before large downloads and before any API call |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Funding | **MVP budget $40 on the student key** (D46): **$0.3156 spent** (spend log below); auto-stop at $32; hard cap $40. `configs/stages.yaml` has `proto20`; `base.yaml`, `pilot.yaml` and the proto20 configs use `student / proto20`. The key's Console limit is $200 (outer safety net only) |
+| Funding | **MVP budget $40 on the student key** (D46): **$0.5039 spent** (spend log below); auto-stop at $32; hard cap $40. `configs/stages.yaml` has `proto20`; `base.yaml`, `pilot.yaml` and the proto20 configs use `student / proto20`. The key's Console limit is $200 (outer safety net only) |
 | Norgate | Not needed for proto20 |
 
 ## proto20 facts
@@ -43,6 +43,10 @@ Source of truth: `python scripts\ledger_report.py` (ledger in `D:\CreatED-Quant\
 | 2026-11-12 | P2 | Rerun of both from the cache | 0 (8 hits) | 0.0000 | 0.00 | 0.0049 | — |
 | 2026-11-12 | P4 | Pilot `pilot_base_dev`, 5 × 3, Haiku: 1st attempt (crashed in month 1), full run, rerun after the cache fix; then a rerun from the cache ($0) | 50 | 0.0390 | 3.43 | 0.0439 | yes |
 | 2026-11-13 | P4 | 2021 dev slice `proto20_2021_base_dev`, 20 × 12, Haiku | 297 | 0.2717 | 23.91 | 0.3156 | yes |
+| 2026-11-13 | P5 | Baseline pilot rerun after D50 (meant to be cache-only; it was not) | 11 | 0.0100 | 0.88 | 0.3256 | **no** (disclosed) |
+| 2026-11-13 | P5 | Enhanced pilot, before and after D54 | 26 | 0.0238 | 2.09 | 0.3494 | yes |
+| 2026-11-13 | P5 | Names-hidden enhanced pilot | 30 | 0.0210 | 1.85 | 0.3704 | yes |
+| 2026-11-13 | P5 | 2021 enhanced slice `proto20_2021_enh_dev` | 60 | 0.1335 | 11.75 | 0.5039 | yes |
 
 Measured: a memo is about 2,700 input tokens (41% read from the prompt cache) and about 870 output tokens, about $0.0006 on Haiku.
 Measured on the 2021 slice: the committee's cached briefing is about 22,300 tokens; each committee call outputs about 2,000 tokens; the committee prompt-cache read share is 69%. Per rebalance: $0.023 on the dev tier, about $0.23 projected on the paper tier (forecast v1, `docs/cost_forecast.md`).
@@ -66,15 +70,14 @@ Measured on the 2021 slice: the committee's cached briefing is about 22,300 toke
 
 ## Next steps (in order)
 
-1. **User:** the MVP checkpoint (P4 report of 13 Nov) and the go-ahead for P5.
-2. **P5 = main Phase 7 code, dev tier:**
-   - `black_litterman.py` (prior = proto20 index weights; a test that no views give the benchmark exactly);
-   - the `EnhancedViews` schema (rating + confidence; keep ONE committee schema so the prompt cache works, D51) and `otto_enhanced_v1.txt`;
-   - `anonymize.py` with a leak scan; `view_accuracy.py`.
+1. **User:** the go-ahead for P6.
+2. **P6** (main Phase 6 + the Phase 7 runs):
+   - first the evaluation code ($0): metrics with ENT/ENB, the Carhart regression, bootstrap confidence intervals, `report.py` (no LLM calls);
+   - then the Sonnet measurement pilot (thinking off vs on; asked first, upper estimate about $2.3);
+   - then a re-issued forecast and the three paper-tier runs, each asked first. Forecast v1: P6 ≈ $26.7 (range $21.4–32.1) against $39.50 left; the top of the range touches the $32 stop, so the names-hidden run may need the user's choice. Lever if tight: shorter committee answers.
+3. **P7** as in `implementation_plan_20.md`.
 
-   Runs: the pilot for enhanced and names-hidden; optionally proto20 2021 enhanced (well under $1). All asked first.
-3. **P6** only after the user approves forecast v1 (P6 ≈ $26.7, range $21.4–32.1, against $39.68 left; the top of the range touches the $32 stop, so the names-hidden run may need the user's choice). Lever if tight: shorter committee answers (output is about half of the Sonnet committee cost).
-4. **P7** as in `implementation_plan_20.md`.
+Watch in P6: enhanced bets are small (tracking error 0.56% in the 2021 slice, because Otto's confidences are mostly low). The 2% risk budget (`black_litterman.te_budget_annual`) is a setting; changing it is the user's call. Before any agents run, check whether it will be cache-only (lesson of 13 Nov).
 
 Watch: the committee is cautious (134 of 240 choices at x1.0, more underweights than overweights, Tesla x0.5 all of 2021). Its 60% track-record hit rate is flattered by 2021's mega-cap lead (overweights and underweights both lagged the index).
 
