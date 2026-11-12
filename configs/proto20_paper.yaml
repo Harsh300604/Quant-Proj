@@ -1,0 +1,9 @@
+# proto20 final runs (P6): 2021-2023, paper tier (memos Haiku 5.5, committee Sonnet 5.5, thinking off).
+# One config for all three runs:  --variant baseline | --variant enhanced | --variant enhanced --names-hidden
+extends: proto20.yaml
+
+run_id: proto20_paper
+
+models: {tier: paper}
+
+budget: {key_label: student, stage: proto20, run_budget_usd: 12.00, inr_per_usd: 88.0}

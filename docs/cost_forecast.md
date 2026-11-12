@@ -55,3 +55,16 @@ MVP budget (stage `proto20`): $40.00; spent so far $0.3156; remaining $39.68; au
 ## Summary to forward
 
 We measured the full agent committee on 12 monthly decisions for 20 companies: it cost $0.27 on the cheap development model. On the paper's model mix, one monthly decision for 20 companies costs about $0.23, so the three 36-month prototype runs plus the model pilot come to about $27 ($21-$32), against $40 left of the $40 prototype budget. Nothing runs without approval first.
+
+## Forecast v2 (13 Nov 2026, after the Sonnet pilot)
+
+Measured on Sonnet (5 stocks x 3 months): answers are as long as Haiku's (0.97x) and thinking "on" cost exactly the same as off (D55), so v1's paper-tier profile holds: about $0.214 of committee cost per rebalance for 20 companies. Memos are cheaper than v1 assumed because identical memo requests come from the cache: the 2021 memos were already paid for in the dev slice, and the enhanced run reuses the baseline's memos.
+
+| run (2021-2023, 36 rebalances x 20, `configs/proto20_paper.yaml`) | committee | memos | estimate | range +-20% | INR |
+|---|---:|---:|---:|---:|---:|
+| baseline | $7.70 | $0.29 (2022-2023 only) | **$8.0** | $6.4-9.6 | Rs 700 |
+| enhanced | $7.70 | $0 (same memos as baseline) | **$7.7** | $6.2-9.2 | Rs 680 |
+| names-hidden enhanced (optional) | $7.70 | $0.43 (scrubbed text: new memos) | **$8.1** | $6.5-9.7 | Rs 715 |
+| **total** | | | **$23.8** | $19.0-28.6 | Rs 2,095 |
+
+Spent before these runs: $0.99. Even at the top of the range the total stays below the $32 automatic stop (about $29.6), leaving roughly $8 of the $40 for reruns and the professor pack. Each run has a $12 cap and is asked separately.
