@@ -280,7 +280,19 @@ _(Later phases are added here as they are built.)_
 
 **What it means, honestly:** the committee ended almost exactly level with the benchmark (0.2 points behind, well inside the uncertainty range). It was very cautious: in 559 of its 720 company decisions it kept the normal weight, so it never strayed far (0.59% tracking error) and trading costs stayed small (0.3% over 3 years). Its views had only a weak link to what happened next (rank IC +0.09). So in this test the baseline AI committee neither helped nor hurt. That is a fair and useful result: careful AI agents with strict rules behave like the index. The enhanced version is tested next on exactly the same data.
 
-_(The enhanced and names-hidden results are added after their runs.)_
+**Enhanced, same period and data**, cost $8.14:
+
+| | Total | Sharpe | Difference from benchmark (tracking error) | Information ratio (90% range) | Trading per month |
+|---|---|---|---|---|---|
+| Baseline (multipliers) | +42.6% | 0.49 | 0.59% | −0.16 (−1.00 to +0.69) | 7.6% |
+| Enhanced (ratings + Black-Litterman) | +42.9% | 0.50 | 0.40% | −0.05 (−1.17 to +0.82) | 6.1% |
+| Benchmark | +42.8% | 0.49 | – | – | – |
+
+How the enhanced ratings turned out (3 months later, vs the benchmark): sell −0.9%, hold +0.4%, buy −0.5%. The buys did slightly worse than the holds, so the views had almost no predictive power (rank IC +0.05).
+
+**The honest conclusion for 2021–2023:** both AI versions ended within 0.3 points of simply holding the 20 companies at market weight, and every range of uncertainty includes zero. Black-Litterman made the portfolio even closer to the index and trade a little less, but it did not add skill, because the views themselves were not predictive. In this test, the agents behaved responsibly (no rule broken, low costs, no red flags) but found no edge. That is a real finding, and the paper's much bigger claimed gains (about 300% from 2021 to 2023) are a reason to be careful with backtests that are not point-in-time.
+
+_(The names-hidden result is added if that run is made.)_
 
 ## 8. Limitations to state honestly
 

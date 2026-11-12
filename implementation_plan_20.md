@@ -310,7 +310,9 @@ Runs in this phase:
 - [x] Sonnet measurement pilot (thinking off vs. on): $0.2449 each, no difference; thinking stays off (D55)
 - [x] Evaluation code (`eval/metrics.py`, `eval/factors.py`, `eval/report.py`), forecast v2 (P6 runs ≈ $23.8)
 - [x] **proto20 baseline** (13 Nov): +42.61% vs the same-20 index's +42.84% (QQQ +34.94%); tracking error 0.59%, information ratio −0.16 (90% CI −1.00 to +0.69), active Carhart alpha −0.15% (t −0.46); turnover 7.6% a month; red flags 0; $7.96. 559 of 720 views at x1.0; rank IC +0.09
-- [ ] proto20 enhanced; [ ] names-hidden enhanced (optional); [ ] three-way report
+- [x] **proto20 enhanced** (13 Nov): +42.94%; tracking error 0.40%, information ratio −0.05 (90% CI −1.17 to +0.82), active alpha −0.05% (t −0.22); turnover 6.1% a month; red flags 0; $8.14. Ratings: sell −0.85%, hold +0.43%, buy −0.47% vs the index; rank IC +0.05
+- [x] Two-way report: `<storage>/reports/proto20_paper/`
+- [ ] names-hidden enhanced (optional, asked); [ ] three-way report
 - [ ] Evaluation code as in main Phase 6:
   - metrics with ENT/ENB;
   - Carhart regression with Newey-West;
