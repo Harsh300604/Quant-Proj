@@ -133,7 +133,7 @@ KEY POINTS OF THE PROTOTYPE (details in implementation_plan_20.md)
 - Universe rule (D39): top 20 companies (company level, D27) by derived cap weight from
   gateway.get_index_weights at the close of 2021-01-04, among members with prices; ties by
   company_id; fixed for the period; frozen in reference/proto20_universe.csv. Never hand-pick.
-- Period (D40): 2021-01 to 2023-12, 36 monthly rebalances; Stage 0 slice = 2021 only.
+- Period (D40): 2021-01 to 2023-12, 36 monthly rebalances; dev slice = 2021 only.
 - Benchmark (D41): cap-weighted index of the same 20 (weights at the close of t-1 apply to returns
   on t, as in data/quality.py index_vs_benchmark). 0x-2x multiples and +-2 pp sector bands are
   measured against it. If a rebalance is infeasible, stop and ask; never loosen constraints yourself.
