@@ -76,12 +76,30 @@ class ResolvedUniverse:
         return f
 
 
+def removed_member(gateway: Gateway, start, exclude=(), last_check: str = "2023-12-01") -> str | None:
+    """Pilot only (config ``add_removed_member``): the first company, alphabetically, that was an
+    index member with prices at ``start`` and is no longer a member on ``last_check``. It looks
+    at a later date on purpose - the pilot must contain a stock that leaves - so it is never used
+    inside a decision."""
+    t0, t1 = as_of_close(start), as_of_close(last_check)
+    u0 = gateway.get_universe(t0)
+    later = set(gateway.get_universe(t1)["company_id"])
+    cands = sorted(c for c in u0.loc[u0["has_prices"].fillna(False).astype(bool), "company_id"]
+                   if c not in later and c not in set(exclude))
+    return cands[0] if cands else None
+
+
 def resolve_universe(cfg: Config, gateway: Gateway, run_dir: Path | None = None) -> ResolvedUniverse:
     """Apply the config's universe rule. With ``run_dir``, also write universe.csv there."""
     u = cfg.universe
     if u.mode == "tickers":
         ids = fixed_universe(u.tickers)
-        res = ResolvedUniverse("tickers", ids, pd.DataFrame({"company_id": ids}))
+        notes = ["configured"] * len(ids)
+        if u.add_removed_member:
+            extra = removed_member(gateway, cfg.dates.start, exclude=ids)
+            if extra:
+                ids, notes = ids + [extra], notes + ["member at the start that left the index later (pilot)"]
+        res = ResolvedUniverse("tickers", ids, pd.DataFrame({"company_id": ids, "why": notes}))
     elif u.mode == "top_n_by_cap":
         t = as_of_close(u.chosen_at)
         table = top_n_by_cap(gateway, t, u.top_n)

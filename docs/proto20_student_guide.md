@@ -2,7 +2,7 @@
 
 This guide explains the 20-stock prototype in plain words: what it is, how it works, how we checked it, and how it performs. It is updated at the end of every build phase. Read it alongside your mentoring sessions. By the end you should be able to explain every part in your own words.
 
-_Last updated: 12 Nov 2026 (phase P1: the 20 companies and the benchmark)._
+_Last updated: 12 Nov 2026 (phase P2: the AI connection and the first memos)._
 
 ---
 
@@ -123,6 +123,34 @@ The biggest companies rose more than the index in good years and fell more in 20
 - Pinduoduo moved from "Industrials" to "Consumer Discretionary", because it's an online shop like Amazon;
 - the spending limit for the whole prototype is set in the code: $40, with an automatic stop at $32.
 
+### P2: talking to the AI safely and cheaply (12 Nov 2026)
+
+**One door to the AI.** Every request to Claude goes through one piece of code (`quantagents/llm/client.py`). It makes sure that:
+- **the answer comes back in a fixed form.** We describe the exact fields we want (for a memo: business summary, price trend, fundamentals, news, positives, risks, a 3-month outlook and a conviction level), and the program checks the answer against that list. If the answer is broken, it asks once more. If it's still broken, the stock gets "no opinion" (neutral), never a made-up one;
+- **the same question is never paid for twice.** Every answer is saved in a small database on the laptop, and asking the exact same question again reads the saved answer for free. That also makes results repeatable;
+- **money can't run away.** A cost ledger records every call with its cost in dollars and rupees. Before each call, it works out the most that call could cost and refuses it if that could push spending past the limit. For the whole prototype the limit is $40, and it stops automatically at $32.
+- **the API key stays secret.** It's read from a private file, never written into logs, the database or error messages, and an automated test checks this.
+
+**The first memos.** A research memo is the AI's one-page note on one company. Python first gathers the facts from the database: returns over 1, 3, 6 and 12 months, indicators, the latest financial results, and up to 15 recent headlines, all as of the decision date. The AI (Claude Haiku, the small, cheap model) then writes the memo from those facts only.
+
+We tested it on 8 memos:
+- 5 on 2 March 2015: Apple, Microsoft, Nvidia, Amazon and American Airlines;
+- 3 on 4 January 2021: Apple, Pinduoduo and T-Mobile.
+
+| What | Cost |
+|---|---|
+| 8 memos (first time) | $0.0049, less than half a rupee |
+| The same 8 again | $0.0000 (all answered from the saved copies) |
+| One memo, on average | about $0.0006 |
+
+**Two bugs found before any money was spent:** a free "dry run" prints exactly what the AI would see, and it showed that:
+- Pinduoduo's results were in Chinese yuan but were shown with a dollar sign;
+- Apple's headquarters showed as "unknown".
+
+Both were fixed first. Lesson: always look at what you're about to send to the AI.
+
+**What we noticed:** all 8 memos said "neutral, low conviction". Our instructions told the junior analyst to be careful, and it was. The real decisions are made by the committee in P4, and we'll watch whether this caution carries through.
+
 _(Later phases are added here as they are built.)_
 
 ## 6. How we know the test is fair
@@ -152,6 +180,8 @@ _(Filled in after the paper-tier runs in phase P6.)_
 | How did you choose the 20 stocks? | A fixed rule: the 20 largest by market cap on 4 Jan 2021, using only that day's data |
 | How do you know the AI didn't see the future? | All data goes through one gateway that checks publication times, and automated tests try to break it |
 | Why not let the AI calculate the weights? | AI models make arithmetic mistakes; Python is exact and checkable |
+| How do you control the AI cost? | A ledger records every call and refuses one that could pass the limit; repeated questions are answered from saved copies for free |
+| What happens if the AI gives a broken answer? | It is checked against a fixed form, asked again once, and otherwise the stock gets "no opinion" (kept at market weight) |
 | What is your benchmark, and why not QQQ? | The same 20 companies held at market weight. Comparing 20 stocks with 100 would mix up "AI skill" with "big companies did better" |
 | How do you know the 20 weren't picked with hindsight? | We rebuilt the database as of 4 Jan 2021 and the rule picked the same 20 |
 | What did you find when you checked the data? | The first top-20 list was wrong because of missing splits, missing share counts and stale files. We fixed each one and added a test |

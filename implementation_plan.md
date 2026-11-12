@@ -358,12 +358,13 @@ Before writing this phase I read the Claude API reference (skill) for the exact 
 - `scripts/ledger_report.py`: spend by key label, run and model, in USD and INR
 
 **Tasks:**
-- [ ] Read the Claude API skill and documentation; note the SDK version and exact parameters in the log
-- [ ] Client wrapper, with a parameter allow-list
-- [ ] Response cache and key function
-- [ ] Ledger, budgets and the 80% stops (key and stage)
-- [ ] Memo schema, prompt and node
-- [ ] Ledger report
+_Built 12 Nov 2026 as proto20 P2 (`implementation_plan_20.md`); the manual checks used the student key and stage `proto20` (D46), and the "$2.40 personal" stop check became the "$32 proto20" stop._
+- [x] Read the Claude API skill and documentation; note the SDK version and exact parameters in the log (`anthropic==2.8.0`; `messages.create` with `output_config: {effort, format: json_schema}` built by `anthropic.transform_schema`; D48)
+- [x] Client wrapper, with a parameter allow-list
+- [x] Response cache and key function
+- [x] Ledger, budgets and the 80% stops (key and stage)
+- [x] Memo schema, prompt and node
+- [x] Ledger report
 
 **Automated tests (no network; the SDK is mocked):**
 - `test_client_params.py`: the request never contains `temperature`, `top_p`, `top_k` or a forced `tool_choice`; it always contains `max_tokens`; model IDs come from the allowed list

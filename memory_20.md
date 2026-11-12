@@ -3,19 +3,19 @@
 Short, factual and always up to date for the prototype track. Update it at the end of every P-phase, before pushing.
 The general project state (Phase 1 facts, environment, preferences, funding table) is in `memory.md` and still applies.
 
-_Last updated: 2026-11-12 (P1 built and pushed; waiting for the user to confirm P1)._
+_Last updated: 2026-11-12 (P2 built, first paid memos run; waiting for the user to confirm P2)._
 
 ## Where we are
 
 | Item | State |
 |---|---|
-| Plan | `implementation_plan_20.md` (approved 6 Nov 2026); decisions D38–D47 in `decisions_20.md` |
-| Main plan position | Phase 1 closed; Phase 2 done except ADR ratios for AZN/VIP/VOD and the delisted-price importer (both full run) |
-| Current P-phase | **P0 done** (confirmed by the user); **P1 built, waiting for the user's confirmation**; next is P2 (LLM layer) |
-| Tests | 262 pass |
+| Plan | `implementation_plan_20.md` (approved 6 Nov 2026); decisions D38–D48 in `decisions_20.md` |
+| Main plan position | Phase 1 closed; Phase 2 done except ADR ratios for AZN/VIP/VOD and the delisted-price importer (both full run); Phase 3 built (as proto20 P2) |
+| Current P-phase | P0 and P1 done (confirmed by the user); **P2 built, waiting for the user's confirmation**; next is P3 (constraints, optimizer, backtest engine; $0) |
+| Tests | 310 pass |
 | Session | Local Claude Code session on the laptop: it runs tests, the ETL and small downloads itself; it asks before large downloads and before any API call |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
-| Funding | **MVP budget $40 on the student key** (D46): $0.00 spent; auto-stop at $32; hard cap $40. `configs/stages.yaml` has `proto20`; `base.yaml`, `pilot.yaml` and the proto20 configs use `student / proto20`. The key's Console limit is $200 (outer safety net only) |
+| Funding | **MVP budget $40 on the student key** (D46): **$0.0049 spent** (spend log below); auto-stop at $32; hard cap $40. `configs/stages.yaml` has `proto20`; `base.yaml`, `pilot.yaml` and the proto20 configs use `student / proto20`. The key's Console limit is $200 (outer safety net only) |
 | Norgate | Not needed for proto20 |
 
 ## proto20 facts
@@ -29,11 +29,29 @@ _Last updated: 2026-11-12 (P1 built and pushed; waiting for the user to confirm 
 - No hard-coding of N or dates (D45). MVP first: build only what proto20 needs; log full-run items as deferred.
 - Student guide: `docs/proto20_student_guide.md`, plain language, updated every phase (convert to docx at the end).
 
+## Spend log (MVP budget $40, stage `proto20`, key label `student`)
+
+Source of truth: `python scripts\ledger_report.py` (ledger in `D:\CreatED-Quant\qa_store\cache\ledger.sqlite`).
+
+| Date | Phase | What | API calls | USD | INR | Total so far | Approved by user |
+|---|---|---|---|---|---|---|---|
+| 2026-11-12 | P2 | 5 pilot memos, 2015-03-02, Haiku | 5 | 0.0031 | 0.27 | 0.0031 | yes |
+| 2026-11-12 | P2 | 3 proto20 memos (AAPL, PDD, TMUS), 2021-01-04, Haiku | 3 | 0.0018 | 0.16 | 0.0049 | yes |
+| 2026-11-12 | P2 | Rerun of both from the cache | 0 (8 hits) | 0.0000 | 0.00 | 0.0049 | — |
+
+Measured: a memo is about 2,700 input tokens (41% read from the prompt cache) and about 870 output tokens, about $0.0006 on Haiku.
+
+## LLM layer facts (P2)
+
+- `quantagents/llm/client.py`: `LLMClient(cfg, run_id).structured(node, model, system, user, schema, max_tokens, effort, thinking_off)` returns a `CallResult`. Response cache: `cache/responses.sqlite`. Ledger: `cache/ledger.sqlite`.
+- Memo CLI: `python -m quantagents.agents.memo --config <cfg> --as-of <date> [--companies A,B] [--dry-run]` writes `runs/<run_id>/memos/<date>/<id>.{json,md,input.txt}`.
+- Foreign filers' figures are in their own currency (CNY, EUR); P/E is computed only for USD.
+
 ## Next steps (in order)
 
-1. **User:** P1 manual checks and confirmation.
-2. **P2 = main Phase 3:** read the Claude API skill/docs first; `llm/client.py`, `cache.py`, `ledger.py` (with stage `proto20` and the $32 stop test), `pricing.py`, memo schema, prompt and node, `scripts/ledger_report.py`. Manual checks: 5 pilot memos on Haiku (≈ $0.002) and 3 proto20 memos on 2021-01-04 (≈ $0.01); **ask before each paid call**.
-3. **P3 → P7** as in `implementation_plan_20.md`.
+1. **User:** P2 confirmation.
+2. **P3 = main Phase 4:** `portfolio/constraints.py`, `baseline_opt.py` (benchmark weight vector as input), `engine/backtest.py` (universe from `resolve_universe`, benchmark from config, writes `universe.csv` and `benchmark_nav.csv`), `engine/strategies.py` (hold benchmark, random tilts), tests. $0.
+3. **P4 → P7** as in `implementation_plan_20.md`.
 
 ## Deferred to the full run (not needed for proto20)
 

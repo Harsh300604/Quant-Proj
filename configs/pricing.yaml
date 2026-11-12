@@ -1,0 +1,7 @@
+# USD per million tokens, used by the cost ledger (llm/pricing.py).
+# Source: brief section 8 and Anthropic's price list (checked 12 Nov 2026).
+# cache_write = 5-minute prompt-cache write (1.25 x input); cache_read = prompt-cache read.
+# Where the brief and the price list differ, the HIGHER figure is used so budget checks stay on the safe side.
+claude-haiku-5-5:  {input: 0.10, output: 0.50, cache_write: 0.125, cache_read: 0.01}   # prompts up to 100k tokens
+claude-sonnet-5-5: {input: 2.00, output: 10.00, cache_write: 2.50, cache_read: 0.20}   # price list says 0.10 for cache reads; brief 0.20
+claude-opus-5-5:   {input: 4.00, output: 20.00, cache_write: 5.00, cache_read: 0.20}

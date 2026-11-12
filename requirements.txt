@@ -23,6 +23,8 @@ exchange_calendars==4.13.2
 pyluach==2.3.0
 toolz==1.2.0
 korean_lunar_calendar==0.4.0
+# Phase 3 / proto20 P2 (LLM layer): official Anthropic SDK, the 2.x line (API version 2026-10-21)
+anthropic==2.8.0
 # Tests
 pytest==9.2.0
 responses==0.26.3

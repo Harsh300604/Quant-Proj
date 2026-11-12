@@ -199,6 +199,11 @@ pytest -q
 
 As in **main Phase 3**, unchanged: client wrapper, response cache, cost ledger with key and stage budgets, 80% stops, memo schema, memos on the 5 pilot stocks on Haiku.
 
+**Status: built 12 Nov 2026, waiting for the user's confirmation.** 310 tests pass. SDK `anthropic==2.8.0`; memo settings per D48.
+- Paid checks (approved by the user): 5 pilot memos on 2015-03-02 cost **$0.0031** and 3 proto20 memos on 2021-01-04 cost **$0.0018**, so **$0.0049 (Rs 0.43)** in total. All 8 are valid, and the reruns cost $0.0000 (8 cache hits). The `--simulate-spend 32.01` check prints BLOCKED.
+- Measured per memo: about 2,700 input tokens (41% read from the prompt cache) and about 870 output tokens, about $0.0006. 20 memos per proto20 rebalance ≈ $0.012.
+- All 8 memos said "neutral, low conviction". The prompt asks for caution; this is watched in P4, where the committee makes the calls.
+
 **Read the Claude API docs/skill before writing API code.**
 
 **Addition:** one manual check runs memos for 3 of the proto20 companies on 2021-01-04, to confirm that 2021 news and fundamentals reach the memo. This costs about $0.01 and must be asked first.
