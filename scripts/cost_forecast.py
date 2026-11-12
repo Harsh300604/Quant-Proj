@@ -102,7 +102,11 @@ def main(argv: list[str] | None = None) -> int:
               "- The enhanced variant (P5) asks for a rating and confidence instead of a multiplier: about the same size.",
               "- Thinking on: committee cost x2.5 (brief section 8); thinking stays off unless the user approves (D46).",
               "- Full runs: ~100 memos per rebalance; the committee briefing adds ~40 tokens per extra company.",
-              "- Reruns from the response cache cost $0.", "",
+              "- Reruns from the response cache cost $0.",
+              "- The Sonnet pilot lines keep the 20-company committee size, so they are upper estimates "
+              "(5 companies mean shorter briefings and answers).",
+              "- Committee answers were about 2,000 output tokens per call on Haiku; output is about half of the "
+              "Sonnet committee cost, so shorter answers are the main lever if the budget gets tight.", "",
               "## Summary to forward", "",
               f"We measured the full agent committee on {rebs} monthly decisions for {n_comp} companies: it cost "
               f"${measured_usd:.2f} on the cheap development model. On the paper's model mix, one monthly decision for "

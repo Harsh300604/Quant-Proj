@@ -247,6 +247,15 @@ python -m quantagents.engine.backtest --config configs\proto20.yaml --strategy r
 
 ## P4: Full agent graph, pilot and the MVP checkpoint
 
+**Status: built 12–13 Nov 2026** (decisions D50, D51). Details and measured numbers are in `memory_20.md`.
+- [x] Agent graph (LangGraph): memos, Emily → Bob → Dave, Otto's draft, Python's draft check, Otto's decision, optimizer; D32–D35 included
+- [x] Selection (everyone when the universe is at most `max_views` with no sector cap), summaries, transcripts, red flags, quick report, cost forecast script
+- [x] Pilot (5 stocks × 3 months, dev tier): constraints OK, no red flags, rerun from cache $0.0000
+- [x] Optimizer distance in multiplier units (D50, chosen by the user)
+- [x] proto20 2021 dev slice (`proto20_2021_base_dev`): 12 rebalances, 12 transcripts with views on all 20, no failed calls, red flags 0 hits, $0.2717. +36.82% vs the same-20 index's +35.46% (QQQ +29.25%); tracking error 1.35%, turnover 12% a month
+- [x] Cost forecast v1 (`docs/cost_forecast.md`): paper tier about $0.23 per rebalance, about $8.15 per 36-month run; P6 total about $26.7 (range $21.4–32.1)
+- [ ] MVP checkpoint: the user approves (or not) P5 and the P6 plan
+
 As in **main Phase 5** (D32–D35 included: simulated trading for Bob, risk stats for Dave, track-record memory, paper persona wording), with these changes:
 - **Selection:** when the universe is at most `max_views` and `max_per_sector` is null, every company gets a view and the "one-liners for the rest" list is empty. `test_selection.py` gets this case.
 - **Dave's risk stats and Bob's simulated trading** are computed against the configured benchmark (the proto20 index here).

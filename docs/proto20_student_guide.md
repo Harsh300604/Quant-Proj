@@ -174,11 +174,52 @@ Both were fixed first. Lesson: always look at what you're about to send to the A
 | Strategy | Total 2021–2023 | Benchmark | Trading costs |
 |---|---|---|---|
 | Hold the benchmark | +43.2% | +42.8% | 0.14% |
-| Random tilts (random multipliers each month) | +35.0% | +42.8% | 2.47% |
+| Random tilts (random multipliers each month) | +35.0% (+39.3% with the P4 optimizer change, D50) | +42.8% | 2.47% |
 
-Holding the benchmark almost exactly reproduces the benchmark, which shows the simulator's accounting is right. Random tilts trade a lot (about 63% of the portfolio a month) and lose about 8 points. That's the bar the AI has to clear: doing better than random, after costs.
+Holding the benchmark almost exactly reproduces the benchmark, which shows the simulator's accounting is right. Random tilts trade a lot (about 63% of the portfolio a month) and lose about 8 points (about 3.5 after the P4 change). That's the bar the AI has to clear: doing better than random, after costs.
 
 **Another bug found by checking:** at first, "hold the benchmark" trailed the benchmark by 2 points. Tracing it day by day showed the cause. When Alphabet and Amazon split their shares 20-for-1 in 2022, the price per share dropped 20×, but the share count stayed at its old figure until the next quarterly report. For a few weeks, those companies looked 20 times smaller than they were. We fixed it and added a test, and the gap shrank to 0.3 points. Lesson: when a number is a little off, find out why. Don't accept "close enough" until you understand it.
+
+### P4: the AI investment committee (12–13 Nov 2026)
+
+**What happens every month (one "meeting day"):**
+1. **20 junior analysts** (cheap AI calls, run four at a time) each write a one-page memo on one company.
+2. **Python prepares a briefing** for the committee. Everything in it is calculated by Python, never by the AI:
+   - a table of each stock's returns, volatility (how much it jumps around) and beta (how strongly it moves with the market);
+   - **simulated trading** for Bob: Python tests five simple rules over the past year, for example "buy last year's winners" or "buy the calmest stocks". It reports which rules would have beaten the benchmark;
+   - **risk numbers** for Dave, including a single risk score R. The benchmark itself scores 0.75, and higher means riskier;
+   - the committee's **track record**: how its own views from 3 months ago turned out. It only counts results that are fully known, so it starts empty and fills from April.
+3. **Market analysis meeting:** Emily (news and company results), then Bob (numbers and simulated trading), then Dave (risk). Each one reads what the earlier ones said.
+4. **Strategy meeting:** Otto, the manager, drafts a multiplier for each stock, from 0× to 2× in steps of 0.25.
+5. **Python checks the draft.** It reports what the rules would change, how much would be traded, what that costs, and how risky the draft is.
+6. **Decision meeting:** Otto confirms or adjusts the draft. Python turns the final multipliers into weights that obey every rule.
+7. Everything is written to a **transcript** you can read, one per month.
+
+**Cheap by design.** All five committee members read the same long briefing, about 10,000 tokens (roughly 7,500 words). The AI service can keep a copy of a repeated text block and charge a tenth of the price to re-read it ("prompt caching"). We found that the answer format counts as part of that block, and each member had a different format. So the briefing was being paid for in full four times a month. Giving everyone the same answer format fixed it and cut the committee's cost by about 40%.
+
+**A design decision made from evidence (D50).** In the 5-stock trial, Otto asked to keep NVIDIA at normal weight and to sell all of American Airlines. The sector rules then forced a correction. The optimizer spread that correction as the same number of percentage points per stock, and that was huge for the tiny NVIDIA position: the result doubled NVIDIA and *raised* American Airlines. We changed "closest portfolio" to be measured in multipliers, so every stock's multiplier moves by the same small amount. Now the outcome was NVIDIA ×1.10 and American Airlines ×0.24, close to what Otto asked for. The random-tilt yardstick became +39.3% (turnover 55% a month).
+
+**Safety checks after every run ("red flags").** The run is flagged if:
+- the results look too good (a Sharpe ratio above 2, or no losing year over two or more years);
+- the portfolio has a 15% day the benchmark didn't have;
+- any rule was broken or any month traded more than 100%;
+- any data was read from after the decision time.
+
+**First real test: 2021, all 20 companies, cheap AI model (13 Nov 2026).**
+
+| | Committee (AI) | Benchmark (same 20) | QQQ (reference) |
+|---|---|---|---|
+| Total return 2021 | +36.8% | +35.5% | +29.3% |
+| Volatility | 20.0% | 20.3% | 18.2% |
+| Worst fall (max drawdown) | −10.6% | −11.4% | −10.9% |
+
+- All 12 meetings produced a valid decision on all 20 companies. Nothing failed, and the safety checks raised no flags.
+- The committee was cautious:
+  - most of the time it left a stock at normal weight (134 of 240 choices);
+  - it underweighted more often than it overweighted;
+  - it traded about 12% of the portfolio a month (random tilts: 55%).
+- **Honest reading:** being 1.4 points ahead after one year is well within luck. One example: the committee held Tesla at half weight all year while Tesla rose faster than the benchmark. Its track record says 60% of its views were "right", but that's flattered by 2021's pattern. The biggest companies led the market, so most smaller stocks lagged the benchmark whatever the committee thought of them.
+- **Cost:** $0.27 (about Rs 24) for the whole year of meetings, using the cheap model. With the stronger model planned for the real runs, a year costs about $2.70, and the full 3 years about $8 per version.
 
 _(Later phases are added here as they are built.)_
 
@@ -215,6 +256,8 @@ _(Filled in after the paper-tier runs in phase P6.)_
 | What happens if the AI gives a broken answer? | It is checked against a fixed form, asked again once, and otherwise the stock gets "no opinion" (kept at market weight) |
 | What is your benchmark, and why not QQQ? | The same 20 companies held at market weight. Comparing 20 stocks with 100 would mix up "AI skill" with "big companies did better" |
 | How do you know the 20 weren't picked with hindsight? | We rebuilt the database as of 4 Jan 2021 and the rule picked the same 20 |
+| Why five AI meetings a month instead of one? | It follows the paper's structure (analysts, then strategy, then decision), and it lets Otto react to Python's check of his draft (rules, trading costs, risk) before deciding |
+| Does the AI see how its earlier calls turned out? | Yes, a "track record" of its own views, but only views whose 3-month result is fully known at the decision date |
 | What did you find when you checked the data? | The first top-20 list was wrong because of missing splits, missing share counts and stale files. We fixed each one and added a test |
 
 ## 10. Who did what

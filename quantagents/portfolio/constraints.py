@@ -35,11 +35,11 @@ class ConstraintSet:
     sector_bench: np.ndarray
     sector_lower: np.ndarray
     sector_upper: np.ndarray
-    projection: str = "absolute"      # how baseline_opt measures distance: absolute | relative
+    projection: str = "relative"      # how baseline_opt measures distance: relative (D50) | absolute (D49)
 
     @classmethod
     def build(cls, bench: pd.Series, sectors: pd.Series, min_multiple: float, max_multiple: float,
-              sector_band_pp: float, projection: str = "absolute") -> "ConstraintSet":
+              sector_band_pp: float, projection: str = "relative") -> "ConstraintSet":
         b = bench.astype(float)
         if (b < 0).any() or abs(b.sum() - 1) > 1e-6:
             raise ValueError("benchmark weights must be >= 0 and sum to 1")

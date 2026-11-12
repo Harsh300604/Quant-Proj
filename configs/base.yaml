@@ -30,6 +30,7 @@ constraints:
   min_multiple_of_index: 0.0
   max_multiple_of_index: 2.0
   sector_band_pp: 2.0        # decision D5 (open decision 3)
+  projection: relative       # optimizer distance in multiplier units (D50); 'absolute' = P3 behaviour (D49)
   long_only: true
 
 selection:
