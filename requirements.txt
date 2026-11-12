@@ -25,6 +25,14 @@ toolz==1.2.0
 korean_lunar_calendar==0.4.0
 # Phase 3 / proto20 P2 (LLM layer): official Anthropic SDK, the 2.x line (API version 2026-10-21)
 anthropic==2.8.0
+# proto20 P4 (agent graph, brief section 6): LangGraph and the packages it pins against.
+# LangSmith tracing stays off (it only switches on with LANGSMITH_TRACING=true; never set it).
+langgraph==1.2.20
+langgraph-checkpoint==4.3.1
+langgraph-prebuilt==1.1.1
+langgraph-sdk==0.4.14
+langchain-core==1.8.0
+langsmith==0.14.17
 # Tests
 pytest==9.2.0
 responses==0.26.3

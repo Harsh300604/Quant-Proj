@@ -89,7 +89,7 @@ class FredRiskFree:
 
     def download(self, start: date, end: date) -> Path:
         path = self.raw_dir / "riskfree" / f"{self.series}.csv"
-        if self.manifest.is_complete(path):
+        if self._covers(path, start, end):
             return path
         text = self.http.get(FRED_URL, params={"id": self.series, "cosd": start.isoformat(),
                                                "coed": end.isoformat()}).text
@@ -98,5 +98,15 @@ class FredRiskFree:
             raise ValueError("unexpected FRED response")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
-        self.manifest.record("riskfree", path, len(df), {"series": self.series})
+        self.manifest.record("riskfree", path, len(df), {"series": self.series, "start": str(start),
+                                                          "end": str(end)})
         return path
+
+    def _covers(self, path: Path, start: date, end: date) -> bool:
+        """Complete AND downloaded for at least this date range. A file saved for the 3-month
+        pilot window must not count as the full series (found 12 Nov: DTB3 stopped in July 2015)."""
+        if not self.manifest.is_complete(path):
+            return False
+        e = self.manifest.entry(path)
+        return (e is not None and "start" in e.params and "end" in e.params
+                and e.params["start"] <= str(start) and e.params["end"] >= str(end))

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -145,6 +146,10 @@ class LLMClient:
         self.limits = limits or Limits.from_config(cfg)
         self.prices = load_pricing()
         self._sdk = sdk
+        # Memo calls run in parallel threads (agent graph): the budget check must count calls that
+        # are still in flight, and the counters must not race.
+        self._lock = threading.Lock()
+        self._in_flight_usd = 0.0
         self.stats = {"api_calls": 0, "cache_hits": 0, "usd": 0.0, "input_tokens": 0, "cache_read_input_tokens": 0,
                       "cache_creation_input_tokens": 0, "output_tokens": 0}
 
@@ -157,14 +162,15 @@ class LLMClient:
         return self._sdk
 
     def _record(self, node: str, model: str, usage: dict, hit: bool, usd: float) -> None:
-        self.ledger.record(run_id=self.run_id, node=node, model=model, key_label=self.limits.key_label,
-                           stage=self.limits.stage, variant=self.variant, usage=usage, cache_hit=hit, usd=usd,
-                           inr_per_usd=self.limits.inr_per_usd)
-        self.stats["cache_hits" if hit else "api_calls"] += 1
-        self.stats["usd"] += usd
-        if not hit:
-            for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "output_tokens"):
-                self.stats[k] += int(usage.get(k) or 0)
+        with self._lock:
+            self.ledger.record(run_id=self.run_id, node=node, model=model, key_label=self.limits.key_label,
+                               stage=self.limits.stage, variant=self.variant, usage=usage, cache_hit=hit, usd=usd,
+                               inr_per_usd=self.limits.inr_per_usd)
+            self.stats["cache_hits" if hit else "api_calls"] += 1
+            self.stats["usd"] += usd
+            if not hit:
+                for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "output_tokens"):
+                    self.stats[k] += int(usage.get(k) or 0)
 
     def structured(self, *, node: str, model: str, system: str, user: str | list, schema: type[BaseModel],
                    max_tokens: int, effort: str, thinking_off: bool = True, replicate: int = 0,
@@ -181,11 +187,18 @@ class LLMClient:
                 result.cache_hits += 1
             else:
                 est_in = len(json.dumps(req)) // 3 + 50
-                self.ledger.check(self.limits, self.run_id, worst_case_usd(model, est_in, max_tokens, self.prices))
-                resp = self._call(req)
-                usd = cost_usd(model, resp["usage"], self.prices)
-                self.cache.put(key, model, resp)
-                self._record(node, model, resp["usage"], False, usd)
+                worst = worst_case_usd(model, est_in, max_tokens, self.prices)
+                with self._lock:      # reserve the worst case until the call is recorded
+                    self.ledger.check(self.limits, self.run_id, worst + self._in_flight_usd)
+                    self._in_flight_usd += worst
+                try:
+                    resp = self._call(req)
+                    usd = cost_usd(model, resp["usage"], self.prices)
+                    self.cache.put(key, model, resp)
+                    self._record(node, model, resp["usage"], False, usd)
+                finally:
+                    with self._lock:
+                        self._in_flight_usd -= worst
                 result.api_calls += 1
                 result.usd += usd
             result.usage = resp["usage"]

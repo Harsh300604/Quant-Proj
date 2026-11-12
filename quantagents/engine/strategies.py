@@ -31,6 +31,7 @@ class Context:
     constraints: ConstraintSet
     holdings: dict[str, float]           # current weights (before trading)
     prior_report: dict | None = None
+    history: list = field(default_factory=list)   # past views [{rebalance, views, bench}] (track record, D34)
 
 
 @dataclass
@@ -59,9 +60,14 @@ class RandomTilts:
 
 
 STRATEGIES = {"hold_benchmark": HoldBenchmark, "index": HoldBenchmark, "random": RandomTilts}
+NAMES = sorted(STRATEGIES) + ["agents"]
 
 
-def make_strategy(name: str, seed: int = 0):
+def make_strategy(name: str, seed: int = 0, *, cfg=None, run_id: str | None = None, run_dir=None,
+                  variant: str = "baseline"):
+    if name == "agents":                       # the LLM committee (P4); needs the run's config and folder
+        from quantagents.agents.graph import AgentCommittee
+        return AgentCommittee(cfg, run_id, run_dir, variant)
     if name not in STRATEGIES:
-        raise ValueError(f"unknown strategy {name!r}; choose from {sorted(STRATEGIES)}")
+        raise ValueError(f"unknown strategy {name!r}; choose from {NAMES}")
     return STRATEGIES[name](seed) if name == "random" else STRATEGIES[name]()

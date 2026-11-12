@@ -28,6 +28,7 @@ from quantagents.data.universe import resolve_universe
 from quantagents.engine.accounting import Book, simulate
 from quantagents.engine.strategies import Context, make_strategy
 from quantagents.eval.benchmarks import custom_cap_index, renormalise
+from quantagents.eval.red_flags import check_run, format_flags, riskfree_daily
 from quantagents.paths import Paths
 from quantagents.portfolio.constraints import ConstraintSet
 
@@ -39,9 +40,10 @@ class StopRequested(RuntimeError):
     """Raised by ``stop_after`` (tests): behaves like a run killed after N months."""
 
 
-def fingerprint(cfg: Config, strategy: str, seed: int) -> str:
+def fingerprint(cfg: Config, strategy: str, seed: int, variant: str | None = None) -> str:
     raw = Path(cfg.source_file).read_bytes() if cfg.source_file else b""
-    return hashlib.sha256(raw + f"|{strategy}|{seed}|{cfg.model_dump_json()}".encode()).hexdigest()[:16]
+    extra = f"|{variant}" if strategy == "agents" else ""
+    return hashlib.sha256(raw + f"|{strategy}|{seed}|{cfg.model_dump_json()}{extra}".encode()).hexdigest()[:16]
 
 
 def wide(prices: pd.DataFrame, col: str) -> pd.DataFrame:
@@ -51,12 +53,13 @@ def wide(prices: pd.DataFrame, col: str) -> pd.DataFrame:
 
 
 def run(cfg: Config, strategy_name: str, run_id: str, seed: int = 0, fresh: bool = False,
-        stop_after: int | None = None, strategy=None, quiet: bool = False) -> dict:
+        stop_after: int | None = None, strategy=None, quiet: bool = False, variant: str | None = None) -> dict:
     paths = Paths.from_config(cfg)
     run_dir = paths.runs / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    strat = strategy or make_strategy(strategy_name, seed)
-    fp = fingerprint(cfg, strategy_name, seed)
+    variant = variant or cfg.variant
+    strat = strategy or make_strategy(strategy_name, seed, cfg=cfg, run_id=run_id, run_dir=run_dir, variant=variant)
+    fp = fingerprint(cfg, strategy_name, seed, variant)
     say = (lambda *a: None) if quiet else print
 
     gw = Gateway(paths.duckdb_file)                    # the engine's own view: realised prices
@@ -76,6 +79,8 @@ def run(cfg: Config, strategy_name: str, run_id: str, seed: int = 0, fresh: bool
                 say(f"resuming from checkpoint: {state['next']} of {len(rebs)} rebalances done")
             else:
                 say("checkpoint is from a different config or strategy: starting again")
+        state.setdefault("history", [])           # past views (track record, D34)
+        state.setdefault("checks", [])            # latest gateway read per decision (red flag 6)
         book = Book.from_json(state["book"])
         navs = {pd.Timestamp(k): v for k, v in state["nav"].items()}
         if not navs:
@@ -92,7 +97,8 @@ def run(cfg: Config, strategy_name: str, run_id: str, seed: int = 0, fresh: bool
             sectors = u["sector"].reindex(bench.index).fillna("Unknown")
             cs = ConstraintSet.from_config(cfg, bench, sectors)
             ctx = Context(t, pd.Timestamp(day), dgw, cfg, list(bench.index), bench, sectors, cs, book.weights(),
-                          state["prior_report"])
+                          state["prior_report"], list(state["history"]))
+            dgw.calls.clear()
             decision = strat.decide(ctx)
             w = decision.weights.reindex(list(cs.companies)).fillna(0.0)
             bad = cs.violations(w.to_numpy())
@@ -100,6 +106,12 @@ def run(cfg: Config, strategy_name: str, run_id: str, seed: int = 0, fresh: bool
                 raise RuntimeError(f"{day.date()}: decision breaks the constraints: {bad[:5]}")
             if dgw.max_as_of is not None and dgw.max_as_of > t:
                 raise RuntimeError(f"{day.date()}: the strategy read data after the decision time")
+            state["checks"].append({"rebalance": str(day.date()), "as_of": str(t),
+                                    "max_read": str(dgw.max_as_of) if dgw.max_as_of is not None else "",
+                                    "gateway_calls": len(dgw.calls)})
+            if "views" in decision.report:
+                state["history"].append({"rebalance": str(day.date()), "views": decision.report["views"],
+                                         "bench": {c: float(v) for c, v in bench.items()}})
             log.info("%s: %d companies, constraints OK", day.date(), len(w))
 
             # simulate from this rebalance's execution day to the day before the next one
@@ -116,8 +128,14 @@ def run(cfg: Config, strategy_name: str, run_id: str, seed: int = 0, fresh: bool
             state["log"] += [{**e, "date": str(pd.Timestamp(e["date"]).date())} for e in events]
             state["weights"] += [{"rebalance": str(day.date()), "company_id": c, "weight": float(w[c]),
                                   "benchmark": float(bench[c]), "sector": sectors[c]} for c in w.index]
+            llm = decision.report.get("llm")
+            extra = (f"; LLM ${llm['usd']:.4f} ({llm['api_calls']} calls, {llm['cache_hits']} cache hits)"
+                     if llm else "")
+            if decision.report.get("failed_meetings") or decision.report.get("failed_memos"):
+                extra += (f"; FAILED meetings {decision.report.get('failed_meetings')} memos "
+                          f"{decision.report.get('failed_memos')}")
             say(f"{day.date()}: constraints OK; turnover {reb['turnover']:.1%}, cost ${reb['cost'] * 1e4:.2f} "
-                f"per $10k; NAV {nav.iloc[-1]:.4f}")
+                f"per $10k; NAV {nav.iloc[-1]:.4f}{extra}")
             state.update(next=i + 1, book=book.to_json(), nav={str(k.date()): v for k, v in sorted(navs.items())},
                          prior_report=decision.report, fingerprint=fp)
             tmp = ck.with_suffix(".tmp")
@@ -137,7 +155,17 @@ def run(cfg: Config, strategy_name: str, run_id: str, seed: int = 0, fresh: bool
         bnav.to_frame().rename_axis("date").to_csv(run_dir / "benchmark_nav.csv")
         pd.DataFrame(state["weights"]).to_csv(run_dir / "weights.csv", index=False)
         pd.DataFrame(state["log"]).to_csv(run_dir / "rebalances.csv", index=False)
+        pd.DataFrame(state["checks"], columns=["rebalance", "as_of", "max_read", "gateway_calls"]).to_csv(
+            run_dir / "checks.csv", index=False)
         summary = summarise(out, pd.DataFrame(state["log"]), cfg, strategy_name, run_id)
+        flags = check_run(run_dir, min_mult=cfg.constraints.min_multiple_of_index,
+                          max_mult=cfg.constraints.max_multiple_of_index, band_pp=cfg.constraints.sector_band_pp,
+                          riskfree=riskfree_daily(gw, cal.close_utc(nav.index[-1])))
+        (run_dir / "red_flags.json").write_text(json.dumps(flags, indent=2), encoding="utf-8")
+        summary["red_flags"] = flags
+        summary["variant"] = variant if strategy_name == "agents" else None
+        if hasattr(strat, "summary"):
+            summary["llm"] = strat.summary()
         (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         return summary
     finally:
@@ -165,25 +193,35 @@ def main(argv: list[str] | None = None) -> int:
     from quantagents.logs import setup_logging
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", default=str(CONFIG_DIR / "pilot.yaml"))
-    ap.add_argument("--strategy", default="hold_benchmark", help="hold_benchmark | index | random (agents: P4)")
+    ap.add_argument("--strategy", default="hold_benchmark", help="hold_benchmark | index | random | agents")
     ap.add_argument("--run-id", required=True)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--fresh", action="store_true", help="ignore an existing checkpoint")
-    ap.add_argument("--variant", help="agents only (P4)")
+    ap.add_argument("--fresh", action="store_true", help="ignore an existing checkpoint (cached LLM answers are still reused)")
+    ap.add_argument("--variant", choices=["baseline", "enhanced"], help="agents only (default: the config's variant)")
     ap.add_argument("--stop-after", type=int, help="stop after N rebalances, as if the run were killed (resume test)")
     args = ap.parse_args(argv)
     cfg = load_config(args.config)
     setup_logging(Paths.from_config(cfg).logs, "backtest")
+    from quantagents.llm.client import LLMError
+    from quantagents.llm.ledger import BudgetExceeded
     try:
-        s = run(cfg, args.strategy, args.run_id, seed=args.seed, fresh=args.fresh, stop_after=args.stop_after)
+        s = run(cfg, args.strategy, args.run_id, seed=args.seed, fresh=args.fresh, stop_after=args.stop_after,
+                variant=args.variant)
     except StopRequested as e:
         print(f"{e}; rerun the same command (without --stop-after) to resume")
         return 0
+    except (BudgetExceeded, LLMError) as e:
+        print(f"STOPPED: {e}\nMonths already done are saved; rerunning the same command resumes from the "
+              "checkpoint (answers already received come from the cache at no cost).")
+        return 1
     print(f"\n{s['run_id']} ({s['strategy']}), {s['start']} to {s['end']}, {s['rebalances']} rebalances")
     print(f"  portfolio: total {s['total_return']:+.2%}, CAGR {s['cagr']:+.2%}")
     print(f"  benchmark ({s['benchmark_mode']}): total {s['benchmark_total_return']:+.2%}, CAGR {s['benchmark_cagr']:+.2%}")
     print(f"  tracking error {s['tracking_error']:.2%} a year; turnover first {s['first_turnover']:.0%}, "
           f"average {s['avg_turnover']:.1%}; total cost {s['total_cost']:.4%} of starting value")
+    if s.get("llm"):
+        print(f"  LLM this session: {s['llm']}")
+    print(f"  {format_flags(s['red_flags'])}")
     print(f"  files: {Paths.from_config(cfg).runs / args.run_id}")
     return 0
 

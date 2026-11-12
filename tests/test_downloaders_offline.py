@@ -231,6 +231,21 @@ def test_french_and_fred(raw):
     assert p.exists() and m.summary().set_index("source").loc["riskfree", "rows"] == 3
 
 
+@responses.activate
+def test_fred_file_for_a_short_window_is_downloaded_again_for_a_longer_one(raw):
+    """Found 12 Nov: the DTB3 file saved for the pilot window was reused for 2021-2023."""
+    responses.add(responses.GET, FRED_URL, body=S.FRED_CSV)
+    m = Manifest(raw)
+    fred = FredRiskFree.create(raw, m)
+    fred.download(date(2014, 1, 1), date(2015, 3, 31))
+    fred.download(date(2014, 1, 1), date(2015, 3, 31))          # same window: no new request
+    fred.download(date(2014, 6, 1), date(2015, 1, 31))          # inside it: no new request
+    assert len(responses.calls) == 1
+    fred.download(date(2014, 1, 1), date(2023, 12, 31))         # longer: downloaded again
+    assert len(responses.calls) == 2
+    assert m.entry(raw / "riskfree" / "DTB3.csv").params["end"] == "2023-12-31"
+
+
 def test_manifest_detects_changed_file(raw):
     m = Manifest(raw)
     f = raw / "x.txt"

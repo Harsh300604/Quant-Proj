@@ -182,16 +182,18 @@ def fundamentals_lines(f: pd.DataFrame, mcap: float) -> list[str]:
 def write_memo(client, cfg: Config, gw: Gateway, company_id: str, as_of) -> tuple[ResearchMemo, str]:
     t = cal.require_utc(as_of)
     text = memo_input(gw, company_id, t)
+    return memo_from_text(client, cfg, company_id, str(t.tz_convert(cal.ET).date()), text), text
+
+
+def memo_from_text(client, cfg: Config, company_id: str, day: str, text: str) -> ResearchMemo:
+    """The LLM part only (no gateway access), so the agent graph can run memos in parallel threads."""
     model = cfg.models.active.memo
     res = client.structured(node="memo", model=model, system=system_prompt(), user=text, schema=MemoBody,
                             max_tokens=cfg.models.memo.max_tokens, effort=cfg.models.memo.effort, thinking_off=True)
-    day = str(t.tz_convert(cal.ET).date())
     if res.ok:
-        memo = ResearchMemo(**res.parsed.model_dump(), company_id=company_id, as_of=day, model=model,
+        return ResearchMemo(**res.parsed.model_dump(), company_id=company_id, as_of=day, model=model,
                             prompt_version=PROMPT_VERSION)
-    else:
-        memo = ResearchMemo.no_view(company_id, day, model, PROMPT_VERSION, res.error)
-    return memo, text
+    return ResearchMemo.no_view(company_id, day, model, PROMPT_VERSION, res.error)
 
 
 def memo_markdown(m: ResearchMemo) -> str:

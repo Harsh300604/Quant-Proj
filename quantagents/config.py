@@ -175,6 +175,22 @@ class Models(Strict):
         return self.tiers[self.tier]
 
 
+class RiskScore(Strict):
+    """Weights of the paper's risk score for Dave (D33). Each term is scaled so the benchmark
+    scores 1 on beta, illiquidity and volatility and 0 on sector (so the benchmark's R = 0.75)."""
+    beta: float = Field(default=0.25, ge=0)
+    illiquidity: float = Field(default=0.25, ge=0)
+    sector: float = Field(default=0.25, ge=0)
+    volatility: float = Field(default=0.25, ge=0)
+
+
+class Agents(Strict):
+    """Agent-graph settings (P4)."""
+    memo_concurrency: int = Field(default=4, ge=1, le=16)   # memo calls in flight at once
+    sim_trading_months: int = Field(default=12, ge=3)        # Bob's look-back (D32)
+    track_record_rebalances: int = Field(default=3, ge=1)    # how many past decisions the track record lists (D34)
+
+
 class Budget(Strict):
     key_label: str
     stage: str = "stage0"
@@ -206,6 +222,8 @@ class Config(Strict):
     selection: Selection
     views: Views
     black_litterman: BlackLitterman
+    risk_score: RiskScore = RiskScore()
+    agents: Agents = Agents()
     models: Models
     budget: Budget
     downloads: Downloads

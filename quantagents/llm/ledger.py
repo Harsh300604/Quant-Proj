@@ -54,7 +54,8 @@ class Ledger:
     """``path`` may be ":memory:" (tests and --simulate-spend)."""
 
     def __init__(self, path: Path | str):
-        self._mem = sqlite3.connect(":memory:") if str(path) == ":memory:" else None
+        # an in-memory ledger may be used from the memo threads; LLMClient serialises access with a lock
+        self._mem = sqlite3.connect(":memory:", check_same_thread=False) if str(path) == ":memory:" else None
         self.path = None if self._mem is not None else Path(path)
         if self.path is not None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
