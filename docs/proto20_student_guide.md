@@ -223,6 +223,8 @@ Holding the benchmark almost exactly reproduces the benchmark, which shows the s
 
 _(Later phases are added here as they are built.)_
 
+**Every problem we found, and how we fixed it**, is listed in `docs/proto20_problems_log.md`. It's good material for the "how do you know your numbers are right?" part of a presentation.
+
 ## 6. How we know the test is fair
 
 - **No peeking at the future:**

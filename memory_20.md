@@ -30,6 +30,7 @@ _Last updated: 2026-11-13 (P4 done: MVP checkpoint; waiting for the user's go-ah
 - All 20 get committee views (D42); `selection.max_per_sector: null`.
 - No hard-coding of N or dates (D45). MVP first: build only what proto20 needs; log full-run items as deferred.
 - Student guide: `docs/proto20_student_guide.md`, plain language, updated every phase (convert to docx at the end).
+- Problems log: `docs/proto20_problems_log.md` (user's request, 13 Nov): every problem found and how it was solved, in plain language. Add a row whenever a problem is found or fixed.
 
 ## Spend log (MVP budget $40, stage `proto20`, key label `student`)
 
