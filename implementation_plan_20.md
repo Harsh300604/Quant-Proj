@@ -312,7 +312,10 @@ Runs in this phase:
 - [x] **proto20 baseline** (13 Nov): +42.61% vs the same-20 index's +42.84% (QQQ +34.94%); tracking error 0.59%, information ratio −0.16 (90% CI −1.00 to +0.69), active Carhart alpha −0.15% (t −0.46); turnover 7.6% a month; red flags 0; $7.96. 559 of 720 views at x1.0; rank IC +0.09
 - [x] **proto20 enhanced** (13 Nov): +42.94%; tracking error 0.40%, information ratio −0.05 (90% CI −1.17 to +0.82), active alpha −0.05% (t −0.22); turnover 6.1% a month; red flags 0; $8.14. Ratings: sell −0.85%, hold +0.43%, buy −0.47% vs the index; rank IC +0.05
 - [x] Two-way report: `<storage>/reports/proto20_paper/`
-- [ ] names-hidden enhanced (optional, asked); [ ] three-way report
+- [x] **names-hidden enhanced** (13 Nov): +42.57%; tracking error 0.55%, information ratio −0.24 (90% CI −1.25 to +0.64), active alpha −0.15% (t −0.58); red flags 0; leak scan 0 of 936 inputs; $8.47
+- [x] Three-way report: `<storage>/reports/proto20_paper/` (results.md, results.csv, growth_of_1.html)
+
+**P6 status: done 13 Nov 2026.** Spend $25.57 of the $40 MVP budget.
 - [ ] Evaluation code as in main Phase 6:
   - metrics with ENT/ENB;
   - Carhart regression with Newey-West;

@@ -292,7 +292,16 @@ How the enhanced ratings turned out (3 months later, vs the benchmark): sell −
 
 **The honest conclusion for 2021–2023:** both AI versions ended within 0.3 points of simply holding the 20 companies at market weight, and every range of uncertainty includes zero. Black-Litterman made the portfolio even closer to the index and trade a little less, but it did not add skill, because the views themselves were not predictive. In this test, the agents behaved responsibly (no rule broken, low costs, no red flags) but found no edge. That is a real finding, and the paper's much bigger claimed gains (about 300% from 2021 to 2023) are a reason to be careful with backtests that are not point-in-time.
 
-_(The names-hidden result is added if that run is made.)_
+**Names hidden, same period and data**, cost $8.47. Every name and ticker was replaced by a code (a scan of all 936 texts sent to the AI found no real name):
+
+| | Total | Tracking error | Buys vs benchmark | Sells vs benchmark | Rank IC |
+|---|---|---|---|---|---|
+| Enhanced, names visible | +42.9% | 0.40% | −0.5% | −0.9% | +0.05 |
+| Enhanced, names hidden | +42.6% | 0.55% | −1.0% | −1.6% | +0.06 |
+
+Hiding the names changed almost nothing. That suggests the AI was not simply "remembering" how Apple or Tesla did. But it is a weak test: a $750-billion company is easy to recognise from its size alone, so we report it as supporting evidence, not proof.
+
+**All results in one place:** `reports/proto20_paper/results.md` (on the D: drive), with the growth-of-$1 chart in `growth_of_1.html` next to it.
 
 ## 8. Limitations to state honestly
 

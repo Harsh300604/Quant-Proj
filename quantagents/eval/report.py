@@ -46,7 +46,7 @@ NOTES = [
 
 def label(run_id: str, summary: dict) -> str:
     v = summary.get("variant") or summary.get("strategy")
-    return f"{run_id} ({v})"
+    return f"{run_id} ({v}{', names hidden' if summary.get('names_hidden') else ''})"
 
 
 def fmt(v, kind: str) -> str:
@@ -73,6 +73,9 @@ def build(runs: list[str], name: str, cfg_path=None) -> Path:
         d = paths.runs / r
         navs[r] = pd.read_csv(d / "nav.csv", index_col="date", parse_dates=True)
         summaries[r] = json.loads((d / "summary.json").read_text(encoding="utf-8"))
+        dec = sorted((d / "decisions").glob("*.json")) if (d / "decisions").exists() else []
+        if dec:
+            summaries[r]["names_hidden"] = bool(json.loads(dec[0].read_text(encoding="utf-8")).get("names_hidden"))
         weights[r] = pd.read_csv(d / "weights.csv")
     first = navs[runs[0]]
     start, end = first.index[0], first.index[-1]
