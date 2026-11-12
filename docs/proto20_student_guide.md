@@ -2,7 +2,7 @@
 
 This guide explains the 20-stock prototype in plain words: what it is, how it works, how we checked it, and how it performs. It is updated at the end of every build phase. Read it alongside your mentoring sessions. By the end you should be able to explain every part in your own words.
 
-_Last updated: 12 Nov 2026 (phase P0: data checks)._
+_Last updated: 12 Nov 2026 (phase P1: the 20 companies and the benchmark)._
 
 ---
 
@@ -85,6 +85,44 @@ We wrote an automated test for each fix, so the mistake can't come back unnotice
 
 **Why this matters:** if we had not checked, the "top 20" would have contained the wrong companies, and every result after that would have been meaningless. Checking data against common sense ("Apple must be near the top") is one of the most important steps in any data project.
 
+### P1: choosing the 20 and building the benchmark (12 Nov 2026)
+
+**Choosing the 20.** We wrote the rule as code instead of typing a list:
+1. Take the NASDAQ-100 members on 4 January 2021 that have price data.
+2. Sort them by their weight in the index at that day's close (a bigger market cap means a bigger weight).
+3. Keep the top 20. If two have exactly the same weight, the one whose code comes first alphabetically wins.
+
+The result is saved in `reference/proto20_universe.csv`, and a check command confirms that the rule still gives the same list.
+
+| Rank | Company | Weight among the 20 |
+|---|---|---|
+| 1–3 | Apple, Microsoft, Amazon | 19.9%, 14.9%, 14.5% |
+| 4–7 | Alphabet, Facebook, Tesla, Nvidia | 10.6%, 7.0%, 6.3%, 2.9% |
+| 8–20 | PayPal, Adobe, Comcast, Netflix, ASML, Intel, PepsiCo, Pinduoduo, Cisco, Broadcom, Costco, Qualcomm, T-Mobile | 1.5–2.5% each |
+
+These 20 companies made up about **75% of the whole NASDAQ-100** on that day. The index is very top-heavy.
+
+**A test that the rule can't cheat:** we rebuilt the whole database as if it were 4 January 2021 (deleting everything after that day) and ran the rule again. It picked exactly the same 20. So nothing from the future influenced the choice.
+
+**The benchmark.** "Holding the same 20 at their market weights":
+- each day, every company's weight is its market cap divided by the total market cap of the 20;
+- the benchmark's return on a day uses the weights from the **previous** day's close times each stock's return that day, because you can only invest using weights you already know.
+
+| Year | Our 20-stock benchmark | QQQ (whole NASDAQ-100, for reference) |
+|---|---|---|
+| 2021 | +32.7% | +27.4% |
+| 2022 | −37.0% | −32.6% |
+| 2023 | +68.9% | +54.9% |
+
+The biggest companies rose more than the index in good years and fell more in 2022. Our AI portfolio has to beat the left-hand column, not QQQ.
+
+**Other changes:**
+- two new indicators for the analysts:
+  - **ADX**: how strong a price trend is, from 0 to 100;
+  - **relative volume**: today's trading volume compared with the last 20 days;
+- Pinduoduo moved from "Industrials" to "Consumer Discretionary", because it's an online shop like Amazon;
+- the spending limit for the whole prototype is set in the code: $40, with an automatic stop at $32.
+
 _(Later phases are added here as they are built.)_
 
 ## 6. How we know the test is fair
@@ -114,6 +152,8 @@ _(Filled in after the paper-tier runs in phase P6.)_
 | How did you choose the 20 stocks? | A fixed rule: the 20 largest by market cap on 4 Jan 2021, using only that day's data |
 | How do you know the AI didn't see the future? | All data goes through one gateway that checks publication times, and automated tests try to break it |
 | Why not let the AI calculate the weights? | AI models make arithmetic mistakes; Python is exact and checkable |
+| What is your benchmark, and why not QQQ? | The same 20 companies held at market weight. Comparing 20 stocks with 100 would mix up "AI skill" with "big companies did better" |
+| How do you know the 20 weren't picked with hindsight? | We rebuilt the database as of 4 Jan 2021 and the rule picked the same 20 |
 | What did you find when you checked the data? | The first top-20 list was wrong because of missing splits, missing share counts and stale files. We fixed each one and added a test |
 
 ## 10. Who did what

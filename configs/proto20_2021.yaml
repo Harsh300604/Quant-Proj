@@ -1,0 +1,6 @@
+# proto20 dev slice: 2021 only (12 rebalances), dev tier. Same universe and benchmark as proto20.yaml.
+extends: proto20.yaml
+
+run_id: proto20_2021
+
+dates: {warmup_start: 2014-01-01, start: 2021-01-01, end: 2021-12-31}

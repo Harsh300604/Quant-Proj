@@ -361,11 +361,23 @@ def compute_indicators(bars: pd.DataFrame) -> pd.DataFrame:
     out["mom_3m"] = tr / tr.shift(63) - 1
     out["mom_6m"] = tr / tr.shift(126) - 1
     out["mom_12_1"] = tr.shift(21) / tr.shift(252) - 1
+    # D36: trend strength ADX(14) (0-100, scale-free) and relative volume RVOL(20) =
+    # today's volume / average of the previous 20 days (a ratio, so the split scaling cancels)
+    adx = ta.adx(h, low, c, length=14)
+    adx_col = [x for x in adx.columns if x.startswith("ADX")] if adx is not None else []
+    out["adx14"] = adx[adx_col[0]] if adx_col else nan
+    if "volume" in b.columns:
+        v = pd.to_numeric(b["volume"], errors="coerce").astype(float)
+        avg = v.rolling(20).mean().shift(1)
+        out["rvol20"] = (v / avg).where(avg > 0)
+    else:
+        out["rvol20"] = nan
     # Blank every value until its full window of history exists. pandas-ta otherwise emits
     # "warm-up" values computed from too few bars for long series (but nothing for short ones),
     # which would make a value depend on how much data FOLLOWS it.
     bars_so_far = np.arange(1, len(b) + 1)
-    need = {"rsi14": 15, "macd_hist_pct": 35, "atr14_pct": 15, "bb_width": 20, "bb_pos": 20}
+    need = {"rsi14": 15, "macd_hist_pct": 35, "atr14_pct": 15, "bb_width": 20, "bb_pos": 20,
+            "adx14": 28, "rvol20": 21}
     for n in (20, 50, 200):
         need[f"close_sma{n}"] = n
         need[f"close_ema{n}"] = n

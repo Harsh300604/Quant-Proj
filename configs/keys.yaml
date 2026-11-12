@@ -4,5 +4,7 @@ personal:
   budget_usd: 3.00       # Rs 300 hard limit on the developer's personal key (~$3.40); $3.00 to allow for FX and tax
   stop_fraction: 0.80    # stop all calls at $2.40
 student:
-  budget_usd: 150.00     # project cap
+  # project cap. The student's key has a $200 limit in the Anthropic Console (12 Nov 2026); that is an
+  # outer safety net only - the project cap stays $150, and the extra $50 is never used without approval (D46)
+  budget_usd: 150.00
   stop_fraction: 0.95    # stop at $142.50 so the $150 cap is never crossed

@@ -17,7 +17,7 @@ models:
   tier: dev
 
 budget:
-  key_label: personal
-  stage: stage0
+  key_label: student
+  stage: proto20
   run_budget_usd: 0.10
   inr_per_usd: 88.0

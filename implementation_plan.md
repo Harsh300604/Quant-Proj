@@ -280,7 +280,7 @@ You approved these on 4 Nov 2026. They are also recorded in `decisions.md`.
 - [x] Gateway with the `as_of` audit and `freeze_at` guard
 - [x] Coverage report, ticker-reuse check, foreign-filer list, derived index vs QQQ
 - [ ] Importer for the WRDS/CRSP (or vendor) file of delisted companies, written when the file exists (D26); until then `manual_prices\<TICKER>.csv` files are already read
-- [ ] Add ADX(14) and relative volume RVOL(20) to `compute_indicators` (D36), blanked until the full window, with a test in `tests/test_indicators_pit.py`
+- [x] Add ADX(14) and relative volume RVOL(20) to `compute_indicators` (D36), blanked until the full window, with a test in `tests/test_indicators_pit.py` (12 Nov, proto20 P1)
 - [~] Fill `reference/adr_ratios.csv` and fix any ticker-reuse findings from the data report. 12 Nov: ratios filled for the foreign filers near the 2021 top 30 (proto20); AZN, VIP and VOD are left for the full run. Ticker reuse: no findings beyond JD and FOX, whose prices start at their listing date.
 - [x] Data fixes found by the manual checks (12 Nov; `decisions.md` known issues): stale pilot price files, splits after the price window, share-count fallbacks for multi-class companies and foreign filers, dated ADR ratios
 - [x] **Your manual checks below** (run on the laptop by the local dev chat, 12 Nov: 237 tests pass; derived index vs QQQ tracking error 1.2–2.5% a year for 2016–2023; 2014–2015 off because of the delisted-price gap, D26)

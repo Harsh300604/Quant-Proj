@@ -117,6 +117,16 @@ That's about $0.25 per rebalance, or about $9 for 36 rebalances. Prompt caching 
 
 **Goal:** close main Phase 2, and add a universe rule and a custom benchmark that work for any N and any start date.
 
+**Status: built 12 Nov 2026, waiting for the user's confirmation.** 262 tests pass. The manual checks were run by the local dev chat: the list matches P0, `--check` prints OK, and the same-20 index returned +32.7% / −37.0% / +68.9% in 2021 / 2022 / 2023, with no missing weights.
+- [x] ADX(14) and RVOL(20) (D36), with tests in `tests/test_indicators_pit.py`. Ticker reuse: no fixes needed (JD and FOX prices start at their listing dates).
+- [x] `quantagents/data/universe.py`: `top_n_by_cap`, `fixed_universe`, `resolve_universe` → `ResolvedUniverse.at(gateway, as_of)`. It raises a look-ahead error if a decision comes before `chosen_at`.
+- [x] `config.py`: `universe.mode / top_n / chosen_at / keep_fixed`; `benchmark.mode` (default `index`); `selection.max_per_sector` may be null.
+- [x] `quantagents/eval/benchmarks.py`: `custom_cap_index`, `benchmark_weights`, `cap_index_returns`
+- [x] `scripts/proto20_universe.py` (prints the list plus a yearly benchmark summary with QQQ as reference); `reference/proto20_universe.csv` frozen
+- [x] `configs/stages.yaml` (`proto20` $40 with the stop at $32; `stage1` removed; `contingency` $20) and the `keys.yaml` comment. `base.yaml` and `pilot.yaml` budget lines are now `student / proto20`, because the student key is the key in `.env` (D46). The "ledger at $32 stops calls" test comes in P2 with the ledger.
+- [x] `configs/proto20.yaml`, `configs/proto20_2021.yaml`
+- [x] PDD sector override → Consumer Discretionary (D47)
+
 **Files:**
 - Main Phase 2 follow-ups from `memory.md`:
   - ADX(14) and RVOL(20) indicators (D36), in `quantagents/data/etl.py`, with tests;
@@ -174,11 +184,13 @@ That's about $0.25 per rebalance, or about $9 for 36 rebalances. Prompt caching 
 python -m quantagents.data.etl
 python scripts\proto20_universe.py
 python scripts\proto20_universe.py --check
+python scripts\proto20_universe.py --leak-check
 pytest -q
 ```
 **Pass:**
 - 20 companies are printed with weights and sectors, and the list matches P0;
 - `--check` prints OK;
+- `--leak-check` prints `LEAK CHECK OK` (the store rebuilt as of 2021-01-04 gives the same list);
 - all tests pass.
 
 ---

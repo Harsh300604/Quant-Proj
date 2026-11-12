@@ -41,13 +41,15 @@ An LLM multi-agent system that manages a **simulated** NASDAQ-100 portfolio. It 
 | Downloads, DuckDB, caches, runs, logs, temp | `D:\CreatED-Quant\qa_store\` (`storage.root` in `configs\base.yaml`) |
 | Secrets | `.env` in the repo folder (never committed) |
 
-## Key swap checklist (when the student's Anthropic key arrives)
+## Key swap checklist
 
-1. Only once you've approved the next funding stage (see "Funding stages" in `implementation_plan.md`): in the Anthropic Console, check that the student's key has the approved credit and a spend limit no higher than $150.
-2. Open `D:\CreatED-Quant\quantagents\.env` in Notepad and replace the value after `ANTHROPIC_API_KEY=` with the student's key. Save.
-3. In `configs\base.yaml`, change `key_label: personal` to `key_label: student` and `stage: stage0` to the approved stage (e.g. `stage: stage1`). Do the same in any other config you run, e.g. `configs\pilot.yaml`.
-4. Run `python scripts\check_env.py`. It should say `API key label: student, budget $150.00` and `Funding stage: stage1, budget $20.00, automatic stop at $16.00`.
-5. Rerun a pilot that already ran on the personal key. It should cost **$0.0000**, because the response cache doesn't depend on the key.
-6. Revoke the personal key in the Console if it's no longer needed.
+**Status (12 Nov 2026, D46):** the student's key is in use, with a $200 Console limit. The configs are already set to `key_label: student` and `stage: proto20` (MVP budget $40, automatic stop at $32). The personal key is no longer used.
+
+To move to another stage later (for example `stage2` for the full run):
+1. Only once you've approved that stage's funds (see "Funding stages" in `implementation_plan.md` and D46): in the Anthropic Console, check that the key's spend limit covers it.
+2. If the key changes: open `D:\CreatED-Quant\quantagents\.env` in Notepad and replace the value after `ANTHROPIC_API_KEY=`. Save.
+3. In the config you run, set `budget.key_label` and `budget.stage` to the approved values.
+4. Run `python scripts\check_env.py`. It shows the key label, the stage budget and the automatic stop.
+5. Rerun a pilot that already ran. It should cost **$0.0000**, because the response cache doesn't depend on the key.
 
 Do not paste keys into chat, email or code. Never commit `.env`.

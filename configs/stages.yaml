@@ -1,16 +1,17 @@
-# Funding stages (see "Funding stages" in implementation_plan.md). The cost ledger tracks spend
-# per stage and stops automatically at budget_usd x stop_fraction. Moving to the next stage
-# (changing budget.stage in the config) needs the user's explicit approval of that stage's funds.
+# Funding stages (see "Funding stages" in implementation_plan.md, and D46 in decisions_20.md).
+# The cost ledger tracks spend per stage and stops automatically at budget_usd x stop_fraction.
+# Moving to another stage (changing budget.stage in the config) needs the user's explicit approval
+# of that stage's funds.
 stage0:
   key_label: personal
-  budget_usd: 3.00        # Rs 300 personal key: build and prove on small slices, Haiku only
+  budget_usd: 3.00        # Rs 300 personal key; no longer used since D46 (kept for the record)
   stop_fraction: 0.80     # stop at $2.40
   buys: "Build and prove the pipeline on small slices (5-20 stocks, 3-12 months), Haiku only"
-stage1:
+proto20:
   key_label: student
-  budget_usd: 20.00
-  stop_fraction: 0.80     # stop at $16.00
-  buys: "Sonnet pilot, thinking on/off decision, first baseline slice on the paper tier"
+  budget_usd: 40.00       # MVP budget (D46): the whole 20-stock prototype, all phases, pilots and reruns
+  stop_fraction: 0.80     # stop at $32.00; going past needs the user's yes; never past $40
+  buys: "20-stock prototype 2021-2023: development, Haiku and Sonnet pilots, baseline/enhanced/names-hidden paper runs"
 stage2:
   key_label: student
   budget_usd: 90.00
@@ -18,6 +19,6 @@ stage2:
   buys: "Full 2015-2023 runs: baseline, enhanced, names-hidden"
 contingency:
   key_label: student
-  budget_usd: 40.00       # brings the student key to the $150 total
+  budget_usd: 20.00       # proto20 40 + stage2 90 + contingency 20 = the $150 project cap
   stop_fraction: 0.80
   buys: "Reruns, or thinking turned on - only with explicit approval"

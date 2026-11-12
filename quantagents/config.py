@@ -42,14 +42,51 @@ class Dates(Strict):
 
 
 class Universe(Strict):
+    """Which companies a run uses (D45: nothing hard-coded to 20 stocks or a date).
+
+    - index_members: the historical index members on each date (default; the full run)
+    - tickers: a fixed list (the 5-stock pilot); also chosen automatically when ``tickers`` is set
+    - top_n_by_cap: the ``top_n`` largest members by derived cap weight at the close of
+      ``chosen_at`` (D39); held for the whole period when ``keep_fixed``, else re-ranked each rebalance
+    """
     index: Literal["NDX"] = "NDX"
+    mode: Literal["index_members", "tickers", "top_n_by_cap"] = "index_members"
     tickers: list[str] | None = None
+    top_n: int | None = Field(default=None, ge=1)
+    chosen_at: date | None = None
+    keep_fixed: bool = True
     add_removed_member: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _default_mode(cls, data):
+        if isinstance(data, dict) and not data.get("mode"):
+            data = {**data, "mode": "tickers" if data.get("tickers") else "index_members"}
+        return data
 
     @field_validator("tickers")
     @classmethod
     def _upper(cls, v: list[str] | None) -> list[str] | None:
         return None if v is None else [t.strip().upper() for t in v]
+
+    @model_validator(mode="after")
+    def _needs(self) -> "Universe":
+        if self.mode == "tickers" and not self.tickers:
+            raise ValueError("universe.mode 'tickers' needs universe.tickers")
+        if self.mode == "top_n_by_cap" and (self.top_n is None or self.chosen_at is None):
+            raise ValueError("universe.mode 'top_n_by_cap' needs universe.top_n and universe.chosen_at")
+        if self.mode != "tickers" and self.tickers:
+            raise ValueError(f"universe.tickers is only used with mode 'tickers' (mode is {self.mode!r})")
+        return self
+
+
+class Benchmark(Strict):
+    """What constraints and active metrics are measured against (D41).
+
+    - index: the derived NASDAQ-100 cap weights of the run's universe dates (full run)
+    - custom_cap_index: cap weights renormalised over the run's own companies (proto20)
+    QQQ and ^NDX are always shown as reference rows."""
+    mode: Literal["index", "custom_cap_index"] = "index"
 
 
 class Constraints(Strict):
@@ -69,7 +106,7 @@ class Constraints(Strict):
 
 class Selection(Strict):
     max_views: int = Field(ge=1, le=20)
-    max_per_sector: int = Field(ge=1)
+    max_per_sector: int | None = Field(default=None, ge=1)   # null = no per-sector cap (proto20, D42)
 
 
 RATINGS = ("strong_sell", "sell", "hold", "buy", "strong_buy")
@@ -160,6 +197,7 @@ class Config(Strict):
     storage: Storage
     dates: Dates
     universe: Universe
+    benchmark: Benchmark = Benchmark()
     rebalance: Literal["monthly_first_trading_day"]
     decision_time: Literal["close"]
     execution: Literal["next_open"]

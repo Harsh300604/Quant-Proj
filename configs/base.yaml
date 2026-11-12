@@ -61,8 +61,8 @@ models:
   committee: {thinking: between_tools, effort: medium, max_tokens: 4000}
 
 budget:
-  key_label: personal        # which key is in .env: personal | student (see configs/keys.yaml)
-  stage: stage0              # funding stage (configs/stages.yaml); change only after the user approves that stage's funds
+  key_label: student         # which key is in .env: personal | student (see configs/keys.yaml); student since D46
+  stage: proto20             # funding stage (configs/stages.yaml); change only after the user approves that stage's funds
   run_budget_usd: 1.00       # per-run cap; the run stops if projected or actual spend exceeds it
   inr_per_usd: 88.0          # exchange rate for showing costs in INR
 
