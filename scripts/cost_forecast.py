@@ -111,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
               f"We measured the full agent committee on {rebs} monthly decisions for {n_comp} companies: it cost "
               f"${measured_usd:.2f} on the cheap development model. On the paper's model mix, one monthly decision for "
               f"20 companies costs about ${paper1.usd:.2f}, so the three 36-month prototype runs plus the model pilot come "
-              f"to about ${total:.0f} (${total * 0.8:.0f}-${total * 1.2:.0f}), against ${remaining:.0f} left of the "
+              f"to about ${total:.0f} (${total * 0.8:.0f}-${total * 1.2:.0f}), against ${remaining:.2f} left of the "
               f"${stage.budget_usd:.0f} prototype budget. Nothing runs without approval first."]
     Path(args.out).write_text("\n".join(lines) + "\n", encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")

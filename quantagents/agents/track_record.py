@@ -28,9 +28,9 @@ def outcome_end(day, horizon_months: int) -> pd.Timestamp:
     return cal.first_trading_day_of_month(m.year, m.month)
 
 
-def outcomes(gw, history: list[dict], as_of, horizon_months: int = 3) -> pd.DataFrame:
-    """One row per scored view (non-neutral, outcome fully known at ``as_of``)."""
-    cols = ["made", "ends", "company_id", "multiplier", "stock_return", "benchmark_return", "excess", "right"]
+def outcomes(gw, history: list[dict], as_of, horizon_months: int = 3, include_neutral: bool = False) -> pd.DataFrame:
+    """One row per scored view (non-neutral unless ``include_neutral``, outcome fully known at ``as_of``)."""
+    cols = ["made", "ends", "company_id", "multiplier", "label", "stock_return", "benchmark_return", "excess", "right"]
     t = cal.require_utc(as_of)
     today = pd.Timestamp(t.tz_convert(cal.ET).date())
     known = [h for h in history if outcome_end(h["rebalance"], horizon_months) <= today]
@@ -55,10 +55,11 @@ def outcomes(gw, history: list[dict], as_of, horizon_months: int = 3) -> pd.Data
             continue
         bret = float((bench / bench.sum() * growth.reindex(bench.index)).sum())
         for c, m in sorted(h["views"].items()):
-            if abs(m - 1.0) <= NEUTRAL_EPS or c not in growth or pd.isna(growth[c]):
+            if (abs(m - 1.0) <= NEUTRAL_EPS and not include_neutral) or c not in growth or pd.isna(growth[c]):
                 continue
             ex = float(growth[c] - bret)
             rows.append({"made": str(d0.date()), "ends": str(d1.date()), "company_id": c, "multiplier": float(m),
+                         "label": (h.get("labels") or {}).get(c, ""),
                          "stock_return": float(growth[c]), "benchmark_return": bret, "excess": ex,
                          "right": bool((m > 1) == (ex > 0))})
     return pd.DataFrame(rows, columns=cols)
@@ -80,7 +81,8 @@ def format_track_record(df: pd.DataFrame, as_of, horizon_months: int = 3, last_n
     for made in sorted(df["made"].unique(), reverse=True)[:last_n]:
         g = df[df["made"] == made].sort_values("multiplier", ascending=False)
         lines.append(f"Views made {made} (outcome to {g['ends'].iloc[0]}; benchmark {g['benchmark_return'].iloc[0]:+.1%}):")
-        lines += [f"- {r.company_id} x{r.multiplier:.2f}: stock {r.stock_return:+.1%}, {r.excess:+.1%} vs benchmark "
+        lines += [f"- {r.company_id} {r.label or f'x{r.multiplier:.2f}'}: stock {r.stock_return:+.1%}, "
+                  f"{r.excess:+.1%} vs benchmark "
                   f"({'right' if r.right else 'wrong'})" for r in g.itertuples()]
     lines.append(f"(Decision time now: {t.tz_convert(cal.ET).date()}; only outcomes that ended by then are shown.)")
     return "\n".join(lines)

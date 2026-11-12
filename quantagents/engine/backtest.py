@@ -111,6 +111,7 @@ def run(cfg: Config, strategy_name: str, run_id: str, seed: int = 0, fresh: bool
                                     "gateway_calls": len(dgw.calls)})
             if "views" in decision.report:
                 state["history"].append({"rebalance": str(day.date()), "views": decision.report["views"],
+                                         "labels": decision.report.get("labels") or {},
                                          "bench": {c: float(v) for c, v in bench.items()}})
             log.info("%s: %d companies, constraints OK", day.date(), len(w))
 
@@ -199,8 +200,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fresh", action="store_true", help="ignore an existing checkpoint (cached LLM answers are still reused)")
     ap.add_argument("--variant", choices=["baseline", "enhanced"], help="agents only (default: the config's variant)")
     ap.add_argument("--stop-after", type=int, help="stop after N rebalances, as if the run were killed (resume test)")
+    ap.add_argument("--names-hidden", action="store_true", help="agents only: the LLMs see aliases, not names (D44)")
     args = ap.parse_args(argv)
     cfg = load_config(args.config)
+    if args.names_hidden:
+        cfg = cfg.model_copy(update={"names_hidden": True})
     setup_logging(Paths.from_config(cfg).logs, "backtest")
     from quantagents.llm.client import LLMError
     from quantagents.llm.ledger import BudgetExceeded

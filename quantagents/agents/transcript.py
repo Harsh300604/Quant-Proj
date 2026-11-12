@@ -31,13 +31,22 @@ def render(inp, state: dict, cost: dict, cfg, memo_prompt: str) -> str:
     if failed_memos or failed_meet:
         out.append(f"Problems: failed memos {failed_memos or 'none'}; failed meetings {failed_meet or 'none'}.")
         out.append("")
-    out += ["| company | sector | benchmark | Otto's multiplier | final weight | final multiplier |",
-            "|---|---|---:|---:|---:|---:|"]
+    labels = state.get("labels") or {}
+    enhanced = bool(labels)
+    out += [f"| company | sector | benchmark | Otto's {'rating (confidence)' if enhanced else 'multiplier'} | "
+            "final weight | final multiplier |", "|---|---|---:|---:|---:|---:|"]
     for c in inp.companies:
         m = mult.get(c)
-        out.append(f"| {c} | {inp.sectors[c]} | {bench[c]:.2%} | {'' if m is None else f'x{m:.2f}'} | "
+        otto = labels.get(c, "") if enhanced else ("" if m is None else f"x{m:.2f}")
+        out.append(f"| {c} | {inp.sectors[c]} | {bench[c]:.2%} | {otto} | "
                    f"{w.get(c, 0.0):.2%} | x{w.get(c, 0.0) / bench[c]:.2f} |")
-    out += ["", "Final multiplier = final weight / benchmark weight, after Python applied the portfolio rules.", ""]
+    how = ("Black-Litterman (ratings and confidence -> expected returns) and then the portfolio rules"
+           if enhanced else "the portfolio rules")
+    out += ["", f"Final multiplier = final weight / benchmark weight, after Python applied {how}.", ""]
+    if cfg.names_hidden:
+        out += ["**Names hidden:** the LLMs saw aliases (X001, ...) instead of tickers and names; the meeting "
+                "inputs below are exactly what they saw. Python's tables use the real names. The exact texts are "
+                f"in `llm_inputs/{inp.day}/`.", ""]
 
     out += ["## Meetings", ""]
     for m in state["meetings"]:

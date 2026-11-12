@@ -31,7 +31,7 @@ import pandas as pd
 
 from quantagents.agents import summaries
 from quantagents.agents.memo import PROMPT_VERSION as MEMO_PROMPT, memo_from_text, memo_input, memo_markdown
-from quantagents.agents.schemas import CommitteeAnswer, ResearchMemo, role_check
+from quantagents.agents.schemas import ResearchMemo, committee_schema, role_check
 from quantagents.agents.selection import select
 from quantagents.agents.sim_trading import format_pool, simulate_pool
 from quantagents.agents.track_record import format_track_record, outcomes
@@ -44,6 +44,7 @@ PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
 COMMITTEE_PROMPT = "committee_v1"
 PERSONAS = {"emily": "emily_v1", "bob": "bob_v1", "dave": "dave_v1", "otto_draft": "otto_baseline_v1",
             "otto_final": "otto_decision_v1"}
+ENHANCED_PERSONAS = {"otto_draft": "otto_enhanced_v1", "otto_final": "otto_enhanced_decision_v1"}
 TITLES = {"emily": "Market analysis meeting: Emily (market news & fundamentals)",
           "bob": "Market analysis meeting: Bob (quantitative & simulated trading)",
           "dave": "Market analysis meeting: Dave (risk control)",
@@ -92,6 +93,8 @@ class AgentState(TypedDict, total=False):
     meetings: Annotated[list, operator.add]
     check_text: str
     multipliers: dict
+    labels: dict
+    bl: dict
     decision_source: str
     weights: dict
 
@@ -107,7 +110,11 @@ def render_report(node: str, parsed) -> str:
     if node == "dave":
         return (d["summary"] + "\nConcerns:\n" + ("\n".join(f"- {c}" for c in d["concerns"]) or "- none")
                 + "\nRisk by company:\n" + "\n".join(f"- {s['company_id']}: {s['risk']}: {s['reason']}" for s in d["stocks"]))
-    return d["summary"] + "\n" + "\n".join(f"- {t['company_id']}: x{t['multiplier']:.2f}: {t['reason']}" for t in d["stocks"])
+    def otto(t):
+        if t.get("rating") is not None:
+            return f"- {t['company_id']}: {t['rating']} (confidence {t['confidence']:.1f}): {t['reason']}"
+        return f"- {t['company_id']}: x{t['multiplier']:.2f}: {t['reason']}"
+    return d["summary"] + "\n" + "\n".join(otto(t) for t in d["stocks"])
 
 
 def by_company(items: list[dict], companies: list[str]) -> tuple[dict, list[str], list[str]]:
@@ -187,22 +194,53 @@ def build_briefing(inp: GraphInputs, gw, cfg, memos: dict[str, ResearchMemo], se
 
 
 # ----------------------------------------------------------------------------- draft check (Python)
-def check_draft(inp: GraphInputs, cfg, multipliers: dict[str, float], stats: dict, dave: dict | None) -> str:
-    cs = inp.constraints
-    w = weights_from_multipliers(cs, pd.Series(multipliers, dtype=float))
+RATING_EQUIV = {"strong_sell": 0.5, "sell": 0.75, "hold": 1.0, "buy": 1.25, "strong_buy": 1.5}
+
+
+def weights_for(inp: GraphInputs, cfg, decision: dict, variant: str, sigma) -> tuple[pd.Series, dict]:
+    """Python turns Otto's decision into weights: multipliers -> projection (baseline);
+    ratings + confidence -> Black-Litterman -> the same constraints (enhanced)."""
+    if variant == "enhanced":
+        from quantagents.portfolio.black_litterman import bl_weights
+        return bl_weights(inp.constraints, sigma, decision, dict(cfg.views.rating_to_excess_return),
+                          cfg.black_litterman.delta, cfg.black_litterman.tau)
+    return weights_from_multipliers(inp.constraints, pd.Series(decision, dtype=float)), {}
+
+
+def proposal_lines(decision: dict, w: pd.Series, bench: pd.Series, variant: str) -> list[str]:
+    if variant == "enhanced":
+        rated = [(c, r, conf) for c, (r, conf) in decision.items() if conf > 0 and r != "hold"]
+        lines = ["Black-Litterman and the portfolio rules turn the draft views into these weights "
+                 "(view -> weight as a multiple of benchmark weight):"]
+        lines += [f"- {c}: {r} (confidence {conf:.1f}) -> x{float(w[c] / bench[c]):.2f}" for c, r, conf in rated]
+        moved = [c for c in w.index if abs(float(w[c] / bench[c]) - 1) > 0.05 and c not in {x[0] for x in rated}]
+        if moved:
+            lines.append("Companies without a buy/sell view that still moved (through correlations, the sector bands "
+                         "or the 100% total): " + ", ".join(f"{c} x{float(w[c] / bench[c]):.2f}" for c in moved))
+        return lines if rated else ["The draft has no buy or sell views: the weights stay at the benchmark."]
+    changed = [(c, decision.get(c, 1.0), float(w[c] / bench[c])) for c in w.index
+               if abs(decision.get(c, 1.0) - float(w[c] / bench[c])) > 0.01]
+    if not changed:
+        return ["The portfolio rules accept every tilt as proposed."]
+    return ["The portfolio rules change these tilts (proposed -> after the rules):"] + \
+        [f"- {c}: x{p:.2f} -> x{e:.2f}" for c, p, e in changed]
+
+
+def overweight_intent(decision: dict, variant: str) -> set[str]:
+    if variant == "enhanced":
+        return {c for c, (r, conf) in decision.items() if r in ("buy", "strong_buy") and conf > 0}
+    return {c for c, m in decision.items() if m > 1.0}
+
+
+def check_draft(inp: GraphInputs, cfg, decision: dict, stats: dict, dave: dict | None, variant: str = "baseline",
+                sigma=None) -> str:
+    w, _ = weights_for(inp, cfg, decision, variant, sigma)
     bench = inp.bench
     allc = sorted(set(w.index) | set(inp.holdings))
     cur = pd.Series(inp.holdings, dtype=float).reindex(allc).fillna(0.0)
     trade = lambda target: float((target.reindex(allc).fillna(0.0) - cur).abs().sum())  # noqa: E731
     turnover = trade(w)          # same definition as the engine: sum of |trades| / portfolio value
-    lines = []
-    changed = [(c, multipliers.get(c, 1.0), float(w[c] / bench[c])) for c in w.index
-               if abs(multipliers.get(c, 1.0) - float(w[c] / bench[c])) > 0.01]
-    if changed:
-        lines.append("The portfolio rules change these tilts (proposed -> after the rules):")
-        lines += [f"- {c}: x{p:.2f} -> x{e:.2f}" for c, p, e in changed]
-    else:
-        lines.append("The portfolio rules accept every tilt as proposed.")
+    lines = proposal_lines(decision, w, bench, variant)
     sw = pd.DataFrame({"w": w, "b": bench, "s": inp.sectors.reindex(w.index)}).groupby("s")[["w", "b"]].sum()
     lines.append("Sector weights after the rules (portfolio vs benchmark): " +
                  "; ".join(f"{s} {r.w:.2%} vs {r.b:.2%}" for s, r in sw.sort_values("b", ascending=False).iterrows()))
@@ -219,29 +257,44 @@ def check_draft(inp: GraphInputs, cfg, multipliers: dict[str, float], stats: dic
               format_portfolio_stats("Current portfolio", stats["current"])]
     if dave:
         risky = {s["company_id"] for s in dave.get("stocks", []) if s.get("risk") == "high"}
-        over = [c for c in w.index if c in risky and multipliers.get(c, 1.0) > 1.0]
+        over = [c for c in w.index if c in risky and c in overweight_intent(decision, variant)]
         if over:
             lines.append("Dave rated these high risk, and the draft overweights them: " + ", ".join(over))
     return "\n".join(lines)
 
 
 # ----------------------------------------------------------------------------- the graph
-def build_graph(inp: GraphInputs, gw, cfg, client):
+def build_graph(inp: GraphInputs, gw, cfg, client, variant: str = "baseline", anon=None,
+                inputs_dir: Path | None = None):
+    """``anon``: an Anonymizer for the names-hidden run (everything sent to an LLM is scrubbed and
+    the answers mapped back). ``inputs_dir``: where to save every LLM input (audit, leak scan)."""
     from langgraph.graph import END, START, StateGraph
     from langgraph.types import Send
 
+    from quantagents.portfolio.black_litterman import monthly_covariance
+
     committee_model = cfg.models.active.committee
     thinking_off = cfg.models.committee.thinking == "between_tools"
+    schema = committee_schema(variant)
+    personas = {**PERSONAS, **(ENHANCED_PERSONAS if variant == "enhanced" else {})}
     ctx: dict[str, Any] = {}
+    shown = (lambda s: anon.scrub(s)) if anon is not None else (lambda s: s)  # noqa: E731
+    real = (lambda c: anon.real_id(c)) if anon is not None else (lambda c: c)  # noqa: E731
+
+    def save(name: str, text: str) -> None:
+        if inputs_dir is not None:
+            inputs_dir.mkdir(parents=True, exist_ok=True)
+            (inputs_dir / f"{name}.txt").write_text(text, encoding="utf-8")
 
     def coverage(state: AgentState) -> dict:
-        return {"memo_inputs": {c: memo_input(gw, c, inp.as_of) for c in inp.companies}}
+        return {"memo_inputs": {c: shown(memo_input(gw, c, inp.as_of)) for c in inp.companies}}
 
     def fan_out(state: AgentState):
         return [Send("memo", {"memo_id": c, "memo_inputs": {c: state["memo_inputs"][c]}}) for c in inp.companies]
 
     def memo(state: AgentState) -> dict:
         c = state["memo_id"]
+        save(f"memo_{c}", state["memo_inputs"][c])
         m = memo_from_text(client, cfg, c, inp.day, state["memo_inputs"][c])
         return {"memos": [m.model_dump()]}
 
@@ -250,25 +303,31 @@ def build_graph(inp: GraphInputs, gw, cfg, client):
         selected, rest = select(memos, inp.bench, inp.sectors, cfg.selection.max_views, cfg.selection.max_per_sector)
         text, extra = build_briefing(inp, gw, cfg, memos, selected, rest)
         ctx["stats"] = extra["stats"]
+        if variant == "enhanced":
+            ctx["sigma"] = monthly_covariance(extra["stats"]["year"], list(inp.constraints.companies))
+        save("committee_briefing", shown(text))
         return {"selected": selected, "rest": rest, "briefing": text, "sections": extra["sections"]}
 
     def meeting(node: str, notes_from: tuple[str, ...]):
         def run(state: AgentState) -> dict:
             reports = state.get("reports", {})
-            parts = [prompt(PERSONAS[node])]
+            parts = [prompt(personas[node])]
             for prev in notes_from:
                 parts.append(f"--- {TITLES[prev]} ---\n{render_report(prev, reports.get(prev))}")
             if node == "otto_final":
                 parts.append(f"--- Python's check of your draft ---\n{state.get('check_text', '')}")
             parts.append(f"Company list (in order): {', '.join(state['selected'])}")
-            user = "\n\n".join(parts)
-            res = client.structured(node=node, model=committee_model, system=state["briefing"], user=user,
-                                    schema=CommitteeAnswer, max_tokens=cfg.models.committee.max_tokens,
+            user = shown("\n\n".join(parts))
+            save(node, user)
+            res = client.structured(node=node, model=committee_model, system=shown(state["briefing"]), user=user,
+                                    schema=schema, max_tokens=cfg.models.committee.max_tokens,
                                     effort=cfg.models.committee.effort, thinking_off=thinking_off,
-                                    check=role_check(node))
+                                    check=role_check(node, variant))
             parsed = res.parsed.model_dump() if res.ok else None
             missing = unknown = []
             if parsed is not None:
+                for s in parsed["stocks"]:
+                    s["company_id"] = real(s["company_id"])
                 _, missing, unknown = by_company(parsed["stocks"], state["selected"])
             entry = {"node": node, "title": TITLES[node], "input": user, "ok": res.ok, "error": res.error,
                      "output": render_report(node, parsed), "missing": missing, "unknown": unknown,
@@ -277,30 +336,42 @@ def build_graph(inp: GraphInputs, gw, cfg, client):
             return {"reports": {node: parsed}, "meetings": [entry]}
         return run
 
-    def tilts_of(parsed: dict | None, selected: list[str]) -> dict[str, float] | None:
+    def decision_of(parsed: dict | None, selected: list[str]) -> dict | None:
+        """{company: multiplier} (baseline) or {company: (rating, confidence)} (enhanced); missing = no view."""
         if parsed is None:
             return None
         found, _, _ = by_company(parsed["stocks"], selected)
+        if variant == "enhanced":
+            return {c: (found[c]["rating"], float(found[c]["confidence"])) if c in found else ("hold", 0.0)
+                    for c in selected}
         return {c: float(found[c]["multiplier"]) if c in found else 1.0 for c in selected}
 
     def draft_check(state: AgentState) -> dict:
-        draft = tilts_of(state["reports"].get("otto_draft"), state["selected"])
+        draft = decision_of(state["reports"].get("otto_draft"), state["selected"])
         if draft is None:
             return {"check_text": "Otto's draft is unavailable (no valid answer); the decision meeting starts from "
-                                  "the benchmark weights (all multipliers 1.0)."}
-        return {"check_text": check_draft(inp, cfg, draft, ctx["stats"], state["reports"].get("dave"))}
+                                  "the benchmark weights (no views)."}
+        return {"check_text": check_draft(inp, cfg, draft, ctx["stats"], state["reports"].get("dave"), variant,
+                                          ctx.get("sigma"))}
 
     def optimizer(state: AgentState) -> dict:
-        final = tilts_of(state["reports"].get("otto_final"), state["selected"])
-        draft = tilts_of(state["reports"].get("otto_draft"), state["selected"])
+        final = decision_of(state["reports"].get("otto_final"), state["selected"])
+        draft = decision_of(state["reports"].get("otto_draft"), state["selected"])
         if final is not None:
-            mult, source = final, "decision meeting"
+            dec, source = final, "decision meeting"
         elif draft is not None:
-            mult, source = draft, "strategy meeting draft (the decision meeting gave no valid answer)"
+            dec, source = draft, "strategy meeting draft (the decision meeting gave no valid answer)"
         else:
-            mult, source = {c: 1.0 for c in state["selected"]}, "no view: benchmark weights (no valid decision)"
-        w = weights_from_multipliers(inp.constraints, pd.Series(mult, dtype=float))
-        return {"multipliers": mult, "decision_source": source, "weights": {c: float(v) for c, v in w.items()}}
+            dec = {c: ("hold", 0.0) if variant == "enhanced" else 1.0 for c in state["selected"]}
+            source = "no view: benchmark weights (no valid decision)"
+        w, details = weights_for(inp, cfg, dec, variant, ctx.get("sigma"))
+        if variant == "enhanced":   # track record and transcript: a multiplier-equivalent plus the label
+            mult = {c: RATING_EQUIV[r] if conf > 0 else 1.0 for c, (r, conf) in dec.items()}
+            labels = {c: f"{r} ({conf:.1f})" for c, (r, conf) in dec.items()}
+        else:
+            mult, labels = dec, {}
+        return {"multipliers": mult, "labels": labels, "decision_source": source,
+                "weights": {c: float(v) for c, v in w.items()}, "bl": details}
 
     g = StateGraph(AgentState)
     g.add_node("coverage", coverage)
@@ -323,11 +394,13 @@ def build_graph(inp: GraphInputs, gw, cfg, client):
     return g.compile()
 
 
-def quant_agents(inp: GraphInputs, gw, cfg, client, variant: str = "baseline") -> dict:
-    """Run the graph for one rebalance. Pure apart from the response cache and the cost ledger."""
-    if variant != "baseline":
-        raise NotImplementedError(f"variant {variant!r} arrives in P5 (Black-Litterman); P4 runs the baseline only")
-    app = build_graph(inp, gw, cfg, client)
+def quant_agents(inp: GraphInputs, gw, cfg, client, variant: str = "baseline", anon=None,
+                 inputs_dir: Path | None = None) -> dict:
+    """Run the graph for one rebalance. Pure apart from the response cache, the cost ledger and the
+    saved copies of the LLM inputs."""
+    if variant not in ("baseline", "enhanced"):
+        raise ValueError(f"unknown variant {variant!r}")
+    app = build_graph(inp, gw, cfg, client, variant, anon, inputs_dir)
     state = app.invoke({"reports": {}}, config={"max_concurrency": cfg.agents.memo_concurrency,
                                                 "recursion_limit": 50})
     state["memos"] = sorted(state["memos"], key=lambda d: d["company_id"])   # parallel order is not fixed
@@ -354,11 +427,15 @@ class AgentCommittee:
                           names={c: str(u["name"].get(c, c)) for c in ctx.bench.index},
                           constraints=ctx.constraints, holdings=ctx.holdings, prior_report=ctx.prior_report,
                           history=list(getattr(ctx, "history", []) or []), benchmark_label=label)
-        before = dict(self.client.stats)
-        state = quant_agents(inp, ctx.gateway, self.cfg, self.client, self.variant)
-        cost = {k: self.client.stats[k] - before.get(k, 0) for k in ("usd", "api_calls", "cache_hits")}
-
+        anon = None
+        if self.cfg.names_hidden:
+            from quantagents.agents.anonymize import for_run
+            anon = for_run(ctx.gateway, ctx.as_of, list(ctx.bench.index), self.run_dir)
         day = inp.day
+        before = dict(self.client.stats)
+        state = quant_agents(inp, ctx.gateway, self.cfg, self.client, self.variant, anon,
+                             self.run_dir / "llm_inputs" / day)
+        cost = {k: self.client.stats[k] - before.get(k, 0) for k in ("usd", "api_calls", "cache_hits")}
         mdir = self.run_dir / "memos" / day
         mdir.mkdir(parents=True, exist_ok=True)
         for d in state["memos"]:
@@ -372,6 +449,7 @@ class AgentCommittee:
         ddir.mkdir(parents=True, exist_ok=True)
         final = state["reports"].get("otto_final") or state["reports"].get("otto_draft") or {}
         report = {"rebalance": day, "summary": final.get("summary", ""), "views": state["multipliers"],
+                  "labels": state.get("labels") or {}, "variant": self.variant, "names_hidden": self.cfg.names_hidden,
                   "source": state["decision_source"], "llm": cost,
                   "failed_meetings": [m["node"] for m in state["meetings"] if not m["ok"]],
                   "failed_memos": [d["company_id"] for d in state["memos"] if not d["ok"]]}

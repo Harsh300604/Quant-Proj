@@ -56,14 +56,36 @@ class CommitteeAnswer(BaseModel):
     stocks: list[CommitteeStock] = Field(description="One entry per company, in the order listed.")
 
 
+Rating = Literal["strong_sell", "sell", "hold", "buy", "strong_buy"]
+Confidence = Literal[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+
+class CommitteeStockEnhanced(CommitteeStock):
+    """Enhanced variant: Otto gives a rating and a confidence instead of a multiplier (Black-Litterman)."""
+    rating: Rating | None = Field(description="Otto (enhanced): 3-month view relative to the benchmark. Others: null.")
+    confidence: Confidence | None = Field(description="Otto (enhanced): confidence in that rating, 0 = none, "
+                                                      "1 = certain. Others: null.")
+
+
+class CommitteeAnswerEnhanced(CommitteeAnswer):
+    """Same as CommitteeAnswer with the two enhanced fields. All five calls of an enhanced run use
+    this one schema, so the prompt cache works there too."""
+    stocks: list[CommitteeStockEnhanced] = Field(description="One entry per company, in the order listed.")
+
+
+def committee_schema(variant: str) -> type[CommitteeAnswer]:
+    return CommitteeAnswerEnhanced if variant == "enhanced" else CommitteeAnswer
+
+
 # the fields each role must fill (checked in Python; a missing field counts as an invalid answer)
 ROLE_FIELDS = {"emily": ("view", "conviction"), "bob": ("view", "conviction"), "dave": ("risk",),
                "otto_draft": ("multiplier",), "otto_final": ("multiplier",)}
+ENHANCED_OTTO = ("rating", "confidence")
 
 
-def role_check(node: str):
+def role_check(node: str, variant: str = "baseline"):
     """A check for LLMClient.structured: '' if the role filled its fields for every company it listed."""
-    fields = ROLE_FIELDS[node]
+    fields = ENHANCED_OTTO if variant == "enhanced" and node.startswith("otto") else ROLE_FIELDS[node]
 
     def check(ans: CommitteeAnswer) -> str:
         bad = [s.company_id for s in ans.stocks if any(getattr(s, f) is None for f in fields)]

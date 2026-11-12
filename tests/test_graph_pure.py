@@ -81,10 +81,53 @@ def test_briefing_is_identical_when_later_data_is_removed(cfg, synthetic_db):
     assert "Views made 2015-01-02" in texts[0]
 
 
-def test_enhanced_variant_is_not_built_yet(cfg, synthetic_db, tmp_path):
+def test_enhanced_ratings_move_weights_the_right_way(cfg, synthetic_db, tmp_path):
     gw = Gateway(synthetic_db[1], freeze_at=cal.as_of_for(pd.Timestamp(DAY)))
     try:
-        with pytest.raises(NotImplementedError, match="P5"):
-            quant_agents(inputs_at(gw, cfg, DAY), gw, cfg, private_client(cfg, tmp_path, CommitteeFake()), "enhanced")
+        inp = inputs_at(gw, cfg, DAY)
+        fake = CommitteeFake()            # Otto: first company buy (0.6), last sell (0.6), others hold (0)
+        state = quant_agents(inp, gw, cfg, private_client(cfg, tmp_path, fake), "enhanced")
     finally:
         gw.close()
+    first, last = state["selected"][0], state["selected"][-1]
+    w = pd.Series(state["weights"])
+    assert w[first] > inp.bench[first] and w[last] < inp.bench[last]
+    assert state["labels"][first] == "buy (0.6)" and state["multipliers"][first] == 1.25
+    assert inp.constraints.violations(w.reindex(list(inp.constraints.companies)).to_numpy()) == []
+    assert "Black-Litterman and the portfolio rules turn the draft views" in state["check_text"]
+    with pytest.raises(ValueError):
+        quant_agents(inp, None, cfg, None, "other")
+
+
+def test_enhanced_with_no_views_is_the_benchmark(cfg, synthetic_db, tmp_path):
+    gw = Gateway(synthetic_db[1], freeze_at=cal.as_of_for(pd.Timestamp(DAY)))
+    try:
+        inp = inputs_at(gw, cfg, DAY)
+        fake = CommitteeFake(rating=lambda i, n: ("hold", 0.0))
+        state = quant_agents(inp, gw, cfg, private_client(cfg, tmp_path, fake), "enhanced")
+    finally:
+        gw.close()
+    w = pd.Series(state["weights"]).reindex(inp.bench.index)
+    assert (w - inp.bench).abs().max() < 1e-10
+
+
+def test_names_hidden_run_sends_no_real_names(cfg, synthetic_db, tmp_path):
+    from quantagents.agents.anonymize import for_run, scan_run
+    run_dir = tmp_path / "hidden_run"
+    gw = Gateway(synthetic_db[1], freeze_at=cal.as_of_for(pd.Timestamp(DAY)))
+    try:
+        inp = inputs_at(gw, cfg, DAY)
+        anon = for_run(gw, inp.as_of, list(inp.bench.index), run_dir)
+        fake = CommitteeFake()
+        state = quant_agents(inp, gw, cfg, private_client(cfg, tmp_path, fake), "enhanced", anon,
+                             run_dir / "llm_inputs" / DAY)
+        n, nbad, bad = scan_run(run_dir, gw)
+    finally:
+        gw.close()
+    assert n == len(inp.companies) + 6 and nbad == 0, bad            # memos + briefing + 5 meetings
+    sent = json.dumps([c["system"][0]["text"] + c["messages"][0]["content"][0]["text"] for c in fake.calls])
+    for c in inp.companies:
+        assert anon.leaks(sent) == [] and f"Company {anon.aliases[c]}" in sent
+    # answers came back with aliases and were mapped to the real companies
+    first = state["selected"][0]
+    assert state["labels"][first] == "buy (0.6)" and set(state["weights"]) == set(inp.bench.index)

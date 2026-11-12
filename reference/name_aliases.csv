@@ -1,0 +1,48 @@
+company_id,alias,note
+AAPL,Apple,brand
+AAPL,iPhone,product
+AAPL,iPad,product
+AAPL,Tim Cook,CEO
+MSFT,Microsoft,brand
+MSFT,Azure,product
+MSFT,Xbox,product
+MSFT,Satya Nadella,CEO
+AMZN,Amazon,brand
+AMZN,AWS,product
+AMZN,Jeff Bezos,founder
+AMZN,Andy Jassy,CEO
+GOOGL,Google,brand
+GOOGL,YouTube,product
+GOOGL,Sundar Pichai,CEO
+FB,Facebook,brand
+FB,Meta Platforms,new name 2021
+FB,Meta,new name 2021
+FB,Instagram,product
+FB,WhatsApp,product
+FB,Zuckerberg,CEO
+TSLA,Tesla,brand
+TSLA,Elon Musk,CEO
+TSLA,Musk,CEO
+NVDA,Nvidia,brand
+NVDA,GeForce,product
+NVDA,Jensen Huang,CEO
+PYPL,PayPal,brand
+PYPL,Venmo,product
+ADBE,Adobe,brand
+CMCSA,Comcast,brand
+CMCSA,NBCUniversal,unit
+NFLX,Netflix,brand
+ASML,ASML,brand
+INTC,Intel,brand
+PEP,PepsiCo,brand
+PEP,Pepsi,brand
+PEP,Frito-Lay,unit
+PDD,Pinduoduo,brand
+PDD,Temu,product
+CSCO,Cisco,brand
+AVGO,Broadcom,brand
+COST,Costco,brand
+QCOM,Qualcomm,brand
+QCOM,Snapdragon,product
+TMUS,T-Mobile,brand
+TMUS,Sprint,merged 2020

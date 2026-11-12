@@ -54,11 +54,24 @@ def companies_of(req: dict) -> list[str]:
     return [c.strip() for c in line.split(":", 1)[1].split(",")]
 
 
-def default_answer(node: str, req: dict, tilt=None) -> dict:
+def is_enhanced(req: dict) -> bool:
+    return "confidence" in json.dumps(req["output_config"])
+
+
+def default_answer(node: str, req: dict, tilt=None, rating=None) -> dict:
     if node == "memo":
         return GOOD_MEMO
     cs = companies_of(req)
     blank = {"view": None, "conviction": None, "risk": None, "multiplier": None}
+    if is_enhanced(req):
+        blank.update(rating=None, confidence=None)
+        if node.startswith("otto"):
+            rating = rating or (lambda i, n: ("buy", 0.6) if i == 0 else (("sell", 0.6) if i == n - 1 else ("hold", 0.0)))
+            stocks = []
+            for i, c in enumerate(cs):
+                r, conf = rating(i, len(cs))
+                stocks.append({"company_id": c, **blank, "rating": r, "confidence": conf, "reason": "Because."})
+            return {"summary": f"{node} views.", "concerns": [], "stocks": stocks}
     if node in ("emily", "bob"):
         return {"summary": f"{node} summary.", "concerns": [], "stocks": [
             {"company_id": c, **blank, "view": "neutral", "conviction": "low", "reason": "Mixed evidence."} for c in cs]}
@@ -75,10 +88,11 @@ class CommitteeFake:
     otto_draft, otto_final). ``answers[node]`` overrides: a dict/str reply, or a function(req) -> dict/str.
     Thread-safe (memos run in parallel)."""
 
-    def __init__(self, answers: dict | None = None, tilt=None):
+    def __init__(self, answers: dict | None = None, tilt=None, rating=None):
         import threading
         self.answers = answers or {}
         self.tilt = tilt
+        self.rating = rating
         self.calls: list[dict] = []
         self._lock = threading.Lock()
         self.messages = self
@@ -91,7 +105,7 @@ class CommitteeFake:
             self.calls.append(req)
         node = node_of(req)
         a = self.answers.get(node)
-        body = a(req) if callable(a) else a if a is not None else default_answer(node, req, self.tilt)
+        body = a(req) if callable(a) else a if a is not None else default_answer(node, req, self.tilt, self.rating)
         cached = node not in ("memo", "emily")
         return reply(body, input_tokens=800 if cached else 5000, output_tokens=600,
                      cache_read=4000 if cached else 0, cache_write=0 if cached else 4000)
