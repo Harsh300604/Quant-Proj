@@ -47,6 +47,7 @@ Source of truth: `python scripts\ledger_report.py` (ledger in `D:\CreatED-Quant\
 | 2026-11-13 | P5 | Enhanced pilot, before and after D54 | 26 | 0.0238 | 2.09 | 0.3494 | yes |
 | 2026-11-13 | P5 | Names-hidden enhanced pilot | 30 | 0.0210 | 1.85 | 0.3704 | yes |
 | 2026-11-13 | P5 | 2021 enhanced slice `proto20_2021_enh_dev` | 60 | 0.1335 | 11.75 | 0.5039 | yes |
+| 2026-11-13 | P6 | Sonnet thinking pilot (off and on, 5 × 3 each) | 30 | 0.4899 | 43.11 | 0.9938 | yes |
 
 Measured: a memo is about 2,700 input tokens (41% read from the prompt cache) and about 870 output tokens, about $0.0006 on Haiku.
 Measured on the 2021 slice: the committee's cached briefing is about 22,300 tokens; each committee call outputs about 2,000 tokens; the committee prompt-cache read share is 69%. Per rebalance: $0.023 on the dev tier, about $0.23 projected on the paper tier (forecast v1, `docs/cost_forecast.md`).
