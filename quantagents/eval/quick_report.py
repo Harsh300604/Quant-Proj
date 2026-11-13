@@ -45,8 +45,10 @@ def stats(nav: pd.Series, rf: pd.Series | None, bench: pd.Series | None = None) 
     return out
 
 
-def svg_chart(lines: dict[str, pd.Series], width: int = 760, height: int = 320, colors: dict | None = None) -> str:
+def svg_chart(lines: dict[str, pd.Series], width: int = 760, height: int = 320, colors: dict | None = None,
+              ylabel=None) -> str:
     colors = colors or COLORS
+    ylabel = ylabel or (lambda v: f"${v:.2f}")
     pad_l, pad_r, pad_t, pad_b = 48, 12, 12, 28
     allv = pd.concat(lines.values())
     lo, hi = float(allv.min()), float(allv.max())
@@ -58,7 +60,7 @@ def svg_chart(lines: dict[str, pd.Series], width: int = 760, height: int = 320, 
     parts = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="Growth of $1">']
     for v in np.linspace(lo, hi, 5):
         parts.append(f'<line x1="{pad_l}" x2="{width - pad_r}" y1="{y(v):.1f}" y2="{y(v):.1f}" class="grid"/>'
-                     f'<text x="{pad_l - 6}" y="{y(v) + 4:.1f}" text-anchor="end">${v:.2f}</text>')
+                     f'<text x="{pad_l - 6}" y="{y(v) + 4:.1f}" text-anchor="end">{ylabel(v)}</text>')
     for yr in range(t0.year, t1.year + 2):
         d = pd.Timestamp(yr, 1, 1)
         if t0 <= d <= t1:

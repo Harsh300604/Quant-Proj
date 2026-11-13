@@ -6,7 +6,8 @@ Writes to <storage>/reports/<name>/:
 - results.md / results.csv: one row per run plus the runs' benchmark (same companies at market weight),
   QQQ and ^NDX (reference only): returns, risk, Sharpe/Sortino/Calmar, active metrics, turnover,
   costs, ENT/ENB, Carhart alpha (Newey-West t-stat), bootstrap 90% intervals;
-- growth_of_1.html: growth of $1 for every line;
+- growth_of_1.html: growth of $1 for every line; growth_of_1.svg and active_return.svg (standalone, for
+  slides and Word);
 - the view-accuracy table of each agents run;
 - the honesty notes every report must print (implementation_plan_20.md, P6).
 """
@@ -61,6 +62,22 @@ def fmt(v, kind: str) -> str:
     if kind == "cip":
         return "-" if any(math.isnan(x) for x in v) else f"[{v[0]:+.1%}, {v[1]:+.1%}]"
     return f"{v:.2f}"
+
+
+def standalone_svg(lines: dict, colors: dict, title: str, ylabel=None, width: int = 760, height: int = 320) -> str:
+    """A self-contained SVG file (title, chart, legend) for posters, slides and Word."""
+    chart = svg_chart(lines, width=width, height=height, colors=colors, ylabel=ylabel)
+    chart = chart.replace("<svg viewBox", f'<svg x="0" y="34" width="{width}" height="{height}" viewBox', 1)
+    legend = "".join(
+        f'<line x1="56" x2="80" y1="{height + 52 + 18 * i}" y2="{height + 52 + 18 * i}" stroke="{colors[k]}" '
+        f'stroke-width="3"/><text x="88" y="{height + 56 + 18 * i}" class="lg">{html.escape(k)}</text>'
+        for i, k in enumerate(lines))
+    total = height + 52 + 18 * len(lines)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {total}" width="{width}" '
+            f'height="{total}"><style>text{{fill:#555;font:11px Calibri,Arial,sans-serif}}'
+            '.grid{stroke:#e0e0e0}.t{fill:#222;font-size:15px;font-weight:bold}.lg{fill:#222;font-size:12px}</style>'
+            f'<rect width="100%" height="100%" fill="#ffffff"/><text x="12" y="22" class="t">{html.escape(title)}</text>'
+            f'{chart}{legend}</svg>')
 
 
 def build(runs: list[str], name: str, cfg_path=None) -> Path:
@@ -174,6 +191,12 @@ def build(runs: list[str], name: str, cfg_path=None) -> Path:
             f"</style></head><body><main><h1>Growth of $1: {html.escape(name)}</h1><div class='legend'>{legend}</div>"
             f"{svg_chart(lines, colors=colors)}</main></body></html>")
     (out / "growth_of_1.html").write_text(page, encoding="utf-8")
+    (out / "growth_of_1.svg").write_text(standalone_svg(
+        lines, colors, f"Growth of $1, {start.date()} to {end.date()}"), encoding="utf-8")
+    active = {label(r, summaries[r]): navs[r]["nav"] / bench - 1 for r in runs}
+    (out / "active_return.svg").write_text(standalone_svg(
+        active, colors, "Cumulative return relative to the benchmark (0% = same as the benchmark)",
+        ylabel=lambda v: f"{v:+.1%}"), encoding="utf-8")
     return out
 
 

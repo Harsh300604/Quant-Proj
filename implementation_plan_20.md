@@ -58,7 +58,7 @@ Where a phase says "as in main Phase N", the file list, tasks and tests in `impl
 | P4 | Full agent graph; pilot; proto20 2021 dev slice; forecast v1 → **MVP checkpoint** | Main Phase 5 | ≈ $0.5–1 |
 | P5 | Black-Litterman, enhanced variant, anonymizer (dev tier) | Main Phase 7 (code only) | ≈ $0.2–0.5 |
 | P6 | Sonnet pilot; evaluation; proto20 paper-tier runs | Main Phase 6 + 7 runs | ≈ $30–33, forecast first |
-| P7 | Professor pack | Main Phase 8 (subset) | $0 |
+| P7 | Professor pack (built 13 Nov) | Main Phase 8 (subset) | $0 |
 | → | Back to the main plan: Norgate import, full runs | `implementation_plan.md` Phase 6 onward | Stage 2 (separate approval) |
 
 All dollar figures are planning estimates (see the MVP budget section below). The forecast at the end of P4 replaces them with measured numbers.
@@ -316,18 +316,20 @@ Runs in this phase:
 - [x] Three-way report: `<storage>/reports/proto20_paper/` (results.md, results.csv, growth_of_1.html)
 
 **P6 status: done 13 Nov 2026.** Spend $25.57 of the $40 MVP budget.
-- [ ] Evaluation code as in main Phase 6:
+
+Original P6 checklist, all done (see the ticked items above):
+- [x] Evaluation code as in main Phase 6:
   - metrics with ENT/ENB;
   - Carhart regression with Newey-West;
   - bootstrap CIs;
   - `report.py` with no LLM calls.
 
   Active metrics are measured against the configured benchmark; QQQ and ^NDX are added as reference rows.
-- [ ] Re-issued forecast for the proto20 `paper` runs, then ask
-- [ ] **proto20 baseline**, 2021–2023, `paper` tier (`configs/proto20_paper_baseline.yaml`, after the go-ahead)
-- [ ] **proto20 enhanced**, 2021–2023, `paper` tier (after the go-ahead)
-- [ ] **proto20 names-hidden enhanced** (optional, D44; only if the forecast fits the $40 MVP budget)
-- [ ] Three-way table and growth-of-$1 chart: proto20 index, baseline, enhanced, (names-hidden), with QQQ and ^NDX as reference lines
+- [x] Re-issued forecast for the proto20 `paper` runs, then ask (forecast v2)
+- [x] **proto20 baseline**, 2021–2023, `paper` tier (run with `configs/proto20_paper.yaml --variant baseline`)
+- [x] **proto20 enhanced**, 2021–2023, `paper` tier
+- [x] **proto20 names-hidden enhanced** (D44; it fitted the budget)
+- [x] Three-way table and growth-of-$1 chart: proto20 index, baseline, enhanced, names-hidden, with QQQ and ^NDX as reference lines
 
 **Honesty notes the report must print:**
 - 36 months is a short sample, so alpha t-stats have low power. Don't claim significance without the numbers.
@@ -352,6 +354,15 @@ If the forecast shows that the $40 MVP budget can't cover all proto20 runs, stop
 - "next step: full 100-stock run 2015–2023".
 
 **Manual check:** the user and the student read `docs/proto20_summary.md` and confirm it can be shown to the professor.
+
+**Tasks:**
+- [x] `python -m quantagents.eval.professor_pack` (no LLM calls) writes `<storage>/reports/proto20/`: results.md/csv (with ENT/ENB), growth_of_1.svg/.html, active_return.svg, architecture.svg, a sample transcript (enhanced, 2022-06-01), Word files and a README
+- [x] `docs/proto20_summary.md`: results, the comparison with the paper (only the recorded Table 2 figures; the rest marked "copy from the paper"), view accuracy by rating, a sample decision, cost, limitations, next step
+- [x] Word conversion with the standard library only (`quantagents/eval/md_docx.py`): no matplotlib, python-docx or pandoc install; charts are SVG. All three files open in Word with every table
+- [x] Tests: `tests/test_professor_pack.py` (456 pass)
+- [ ] User and student: read the summary; copy the paper's remaining Table 2 columns; confirm it can go to the professor
+
+**P7 status: built 13 Nov 2026, $0; waiting for the manual check.**
 
 ---
 

@@ -254,7 +254,18 @@ How the enhanced committee's ratings turned out (3 months later, compared with t
 
 The ratings line up in the right order, from worst to best. But Otto's confidence was usually low, so the risk budget turned the views into very small bets. The portfolio barely differed from the benchmark (0.56%), so good views added little. One year on the cheap model proves nothing either way; the real test is P6 (3 years, stronger model).
 
-_(Later phases are added here as they are built.)_
+### P6: the final runs (13 Nov 2026)
+
+The three versions (baseline, enhanced, and enhanced with names hidden) ran for all 36 months on the final model mix. A testing pilot first showed that letting the committee "think" longer cost the same and changed nothing, so thinking stayed off. Each 3-year run cost about $8. The results are in section 7.
+
+### P7: the professor pack (13 Nov 2026)
+
+Everything needed to present the prototype, made from the stored runs **without any AI calls** (cost $0), with one command: `python -m quantagents.eval.professor_pack`. It writes, in `reports/proto20/` on the D: drive:
+- the summary (`docs/proto20_summary.md`, also as a Word file) with all the numbers, a comparison with the paper, the limitations and the next step;
+- the growth-of-$1 chart and an "ahead of or behind the benchmark" chart (SVG pictures that go straight into Word or PowerPoint);
+- a diagram of one monthly rebalance;
+- one full committee meeting (June 2022) as a sample;
+- Word versions of this guide and of the problems log.
 
 **Every problem we found, and how we fixed it**, is listed in `docs/proto20_problems_log.md`. It's good material for the "how do you know your numbers are right?" part of a presentation.
 
@@ -301,13 +312,16 @@ How the enhanced ratings turned out (3 months later, vs the benchmark): sell −
 
 Hiding the names changed almost nothing. That suggests the AI was not simply "remembering" how Apple or Tesla did. But it is a weak test: a $750-billion company is easy to recognise from its size alone, so we report it as supporting evidence, not proof.
 
-**All results in one place:** `reports/proto20_paper/results.md` (on the D: drive), with the growth-of-$1 chart in `growth_of_1.html` next to it.
+**All results in one place:** `docs/proto20_summary.md` in the project, and `reports/proto20/` on the D: drive (full tables, charts, diagram, sample meeting and Word files).
 
 ## 8. Limitations to state honestly
 
 - Only 20 companies and 36 months: a short test, so differences may be luck. We don't claim statistical significance unless the numbers support it.
 - The results are about these 20 companies, not about "beating the NASDAQ-100".
 - Our index weights are calculated from public filings. They're close to the official weights but not identical.
+- The rules (0–2× per stock, sectors within 2 points) keep the portfolio close to the benchmark by design, so big wins or big losses were never possible.
+- Each version ran once. The AI's answers vary a little from run to run, so a second run could give slightly different numbers.
+- The full list is in `docs/proto20_summary.md` ("Limitations").
 
 ## 9. Questions a mentor or professor may ask
 

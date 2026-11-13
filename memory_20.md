@@ -3,7 +3,7 @@
 Short, factual and always up to date for the prototype track. Update it at the end of every P-phase, before pushing.
 The general project state (Phase 1 facts, environment, preferences, funding table) is in `memory.md` and still applies.
 
-_Last updated: 2026-11-13 (P6 done: all three paper runs; waiting for the user's go-ahead for P7)._
+_Last updated: 2026-11-13 (P7 built: professor pack, $0; waiting for the user's and student's read of the summary)._
 
 ## Where we are
 
@@ -11,8 +11,8 @@ _Last updated: 2026-11-13 (P6 done: all three paper runs; waiting for the user's
 |---|---|
 | Plan | `implementation_plan_20.md` (approved 6 Nov 2026); decisions D38–D55 in `decisions_20.md` |
 | Main plan position | Phase 1 closed; Phase 2 done except ADR ratios for AZN/VIP/VOD and the delisted-price importer (both full run); Phases 3, 4 and 5 built (as proto20 P2, P3, P4) |
-| Current P-phase | P0–P3 done (confirmed); P4 done (MVP checkpoint); P5 done; **P6 done 13 Nov** (baseline +42.61%, enhanced +42.94%, names-hidden +42.57% vs the same-20 index +42.84%; report in <storage>/reports/proto20_paper/); next is P7 (professor pack, $0) |
-| Tests | 449 pass |
+| Current P-phase | P0–P3 done (confirmed); P4 done (MVP checkpoint); P5 done; **P6 done 13 Nov** (baseline +42.61%, enhanced +42.94%, names-hidden +42.57% vs the same-20 index +42.84%; report in <storage>/reports/proto20_paper/); **P7 built 13 Nov** (professor pack in <storage>/reports/proto20/, summary in docs/proto20_summary.md; $0); waiting for the manual check |
+| Tests | 456 pass |
 | Session | Local Claude Code session on the laptop: it runs tests, the ETL and small downloads itself; it asks before large downloads and before any API call |
 | Branch | `claude/nifty-albattani-era22n` (push here only) |
 | Funding | **MVP budget $40 on the student key** (D46): **$25.5651 spent** (spend log below); auto-stop at $32; hard cap $40. `configs/stages.yaml` has `proto20`; `base.yaml`, `pilot.yaml` and the proto20 configs use `student / proto20`. The key's Console limit is $200 (outer safety net only) |
@@ -74,9 +74,10 @@ Measured on the 2021 slice: the committee's cached briefing is about 22,300 toke
 
 ## Next steps (in order)
 
-1. **User:** the go-ahead for P7.
-2. **P7 = professor pack ($0, no LLM calls):** `docs/proto20_summary.md` (numbers only); results table next to the paper's Table 2; growth-of-$1 chart (needs a PNG: matplotlib is not installed, so either a small install, asked first, or the existing SVG/HTML); architecture diagram; one sample transcript; view-accuracy tables; limitations list; "next step: full 100-stock run 2015–2023". Convert the student guide and the problems log to docx.
-3. After proto20: back to `implementation_plan.md` (Norgate data, D26; the full runs need their own forecast and approval).
+1. **User and student:** read `docs/proto20_summary.md` (or `proto20_summary.docx` in <storage>/reports/proto20/); copy the paper's remaining Table 2 columns into its comparison table; confirm it can go to the professor.
+2. After proto20: back to `implementation_plan.md` (Norgate data, D26; the full runs need their own forecast and approval).
+
+Professor pack facts (P7): `python -m quantagents.eval.professor_pack [--runs ...] [--name proto20] [--sample RUN DATE]` rebuilds everything with no LLM calls. Word files come from `quantagents/eval/md_docx.py` (standard library only; `python -m quantagents.eval.md_docx <src.md> <out.docx>`); charts are SVG (no matplotlib). After editing a doc, rerun the pack to refresh its .docx.
 
 P6 results (13 Nov): baseline +42.61%, enhanced +42.94%, names-hidden enhanced +42.57%, same-20 index +42.84%, QQQ +34.94%. Every active-return interval includes zero; rank ICs +0.05 to +0.09. The committee was cautious (most views at the benchmark weight). Spend $25.57 of $40; $6.43 left before the stop.
 
