@@ -360,9 +360,9 @@ If the forecast shows that the $40 MVP budget can't cover all proto20 runs, stop
 - [x] `docs/proto20_summary.md`: results, the comparison with the paper (only the recorded Table 2 figures; the rest marked "copy from the paper"), view accuracy by rating, a sample decision, cost, limitations, next step
 - [x] Word conversion with the standard library only (`quantagents/eval/md_docx.py`): no matplotlib, python-docx or pandoc install; charts are SVG. All three files open in Word with every table
 - [x] Tests: `tests/test_professor_pack.py` (456 pass)
-- [ ] User and student: read the summary; copy the paper's remaining Table 2 columns; confirm it can go to the professor
+- [x] User read the summary and approved it (13 Nov); the comparison table now has every Table 2 column copied exactly from the paper (arXiv 2510.04643 v1). Comparable: TR, ARR, MDD, VoL (the paper's VoL is daily; our ^NDX reproduces its NDX row). Not comparable: SR, CR, SoR (we can't reproduce the paper's NDX values), ENT, ENB
 
-**P7 status: built 13 Nov 2026, $0; waiting for the manual check.**
+**P7 status: done 13 Nov 2026, $0.** proto20 is complete.
 
 ---
 

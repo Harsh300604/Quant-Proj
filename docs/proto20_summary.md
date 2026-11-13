@@ -74,14 +74,33 @@ A picture version is in `architecture.svg`. **The AI never does maths:** every n
 
 ## Next to the paper (different setups)
 
-| | QuantAgents paper (reported) | proto20 baseline | proto20 enhanced | same-20 benchmark | ^NDX |
-|---|---:|---:|---:|---:|---:|
-| total return, 2021 to 2023 | about 300% | +42.61% | +42.94% | +42.84% | +32.54% (the paper reports 32.5%) |
-| Sharpe | 3.11 | 0.49 | 0.50 | 0.49 | 0.42 |
-| max drawdown | 16.9% | 40.31% | 40.46% | 40.49% | 35.56% |
-| other Table 2 columns (ARR, Calmar, Sortino, volatility, ENT, ENB) | _copy from the paper's Table 2_ | see above | see above | see above | see above |
+The paper's columns are copied exactly from its Table 2 (arXiv 2510.04643, v1). Ours are in the same units: the paper's volatility (VoL) is **daily**, so ours is converted from yearly to daily.
 
-Our ^NDX return matches the paper's index figure (32.5%), so the two periods line up. The setups differ:
+| Table 2 column | paper: QuantAgents | paper: NDX | our ^NDX | proto20 baseline | proto20 enhanced | proto20 names hidden | same-20 benchmark |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Directly comparable** (our ^NDX reproduces the paper's NDX) | | | | | | | |
+| TR (%), total return | 299.55 | 32.52 | 32.54 | 42.61 | 42.94 | 42.57 | 42.84 |
+| ARR (%), return per year | 58.68 | 9.84 | 9.91 | 12.64 | 12.73 | 12.63 | 12.70 |
+| MDD (%), worst fall | 16.86 | 35.58 | 35.56 | 40.31 | 40.46 | 40.19 | 40.49 |
+| VoL (%), daily volatility | 1.43 | 1.52 | 1.52 | 1.67 | 1.67 | 1.66 | 1.68 |
+| **Not comparable** (different definitions: our ^NDX does not reproduce the paper's NDX) | | | | | | | |
+| SR, Sharpe | 3.11 | 0.64 | 0.42 | 0.49 | 0.50 | 0.49 | 0.49 |
+| CR, Calmar | 11.38 | 1.38 | 0.28 | 0.31 | 0.31 | 0.31 | 0.31 |
+| SoR, Sortino | 66.94 | 13.07 | 0.59 | 0.70 | 0.71 | 0.70 | 0.70 |
+| ENT, entropy of weights | 2.97 | – | – | 2.45 | 2.46 | 2.46 | 2.47 |
+| ENB, effective number of bets | 1.49 | – | – | 1.80 | 1.79 | 1.79 | 1.76 |
+
+How to read it:
+- **The two periods line up.** On the four comparable columns, our ^NDX matches the paper's NDX almost exactly. For example, 32.54% against 32.52%, and the same 1.52% daily volatility.
+- **Sharpe, Calmar and Sortino can't be compared.** Ours use the T-bill rate and the standard formulas. We could not reproduce the paper's NDX values for these three:
+  - Sharpe with a zero risk-free rate gives 0.51, against the paper's 0.64;
+  - Calmar and Sortino are far apart, at 0.28 against 1.38 and 0.59 against 13.07.
+
+  The paper's formulas are probably in its Appendix H, which we have not read. So compare these rows only within one column set, not across.
+- **ENT and ENB can't be compared either.** The paper picks from about 100 companies, we hold 20 fixed ones, and the paper's formulas haven't been checked.
+- **The paper reports about 7 times the index's total return** (299.55% against 32.52%), with a smaller worst fall. Our three versions all ended within 0.4 points of their benchmark.
+
+The setups differ:
 - Our committee sees only point-in-time data.
 - It is held to benchmark-relative rules: 0× to 2× per stock and ±2 points per sector.
 - It works on 20 fixed companies.

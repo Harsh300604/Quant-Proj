@@ -3,7 +3,7 @@
 Short, factual and always up to date for the prototype track. Update it at the end of every P-phase, before pushing.
 The general project state (Phase 1 facts, environment, preferences, funding table) is in `memory.md` and still applies.
 
-_Last updated: 2026-11-13 (P7 built: professor pack, $0; waiting for the user's and student's read of the summary)._
+_Last updated: 2026-11-13 (P7 done and approved: professor pack, $0; proto20 complete)._
 
 ## Where we are
 
@@ -74,7 +74,7 @@ Measured on the 2021 slice: the committee's cached briefing is about 22,300 toke
 
 ## Next steps (in order)
 
-1. **User and student:** read `docs/proto20_summary.md` (or `proto20_summary.docx` in <storage>/reports/proto20/); copy the paper's remaining Table 2 columns into its comparison table; confirm it can go to the professor.
+1. proto20 is complete (P7 approved 13 Nov; the comparison table has the full Table 2 of the paper. Its VoL is daily; its SR/CR/SoR use definitions we can't reproduce, so they're marked not comparable).
 2. After proto20: back to `implementation_plan.md` (Norgate data, D26; the full runs need their own forecast and approval).
 
 Professor pack facts (P7): `python -m quantagents.eval.professor_pack [--runs ...] [--name proto20] [--sample RUN DATE]` rebuilds everything with no LLM calls. Word files come from `quantagents/eval/md_docx.py` (standard library only; `python -m quantagents.eval.md_docx <src.md> <out.docx>`); charts are SVG (no matplotlib). After editing a doc, rerun the pack to refresh its .docx.
