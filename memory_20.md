@@ -75,6 +75,7 @@ Measured on the 2021 slice: the committee's cached briefing is about 22,300 toke
 ## Next steps (in order)
 
 1. proto20 is complete (P7 approved 13 Nov; the comparison table has the full Table 2 of the paper. Its VoL is daily; its SR/CR/SoR use definitions we can't reproduce, so they're marked not comparable).
+   Handover docs (13 Nov): `docs/proto20_professor_recap.md` (for the professor) and `docs/proto20_mentor_briefing.md` (for the mentor, who has no finance background: glossary with our numbers, reading order, AI usage/tokens/run times, changes vs the student's notebook). The "Who did what" section of the student guide is for the mentor and student to fill in.
 2. After proto20: back to `implementation_plan.md` (Norgate data, D26; the full runs need their own forecast and approval).
 
 Professor pack facts (P7): `python -m quantagents.eval.professor_pack [--runs ...] [--name proto20] [--sample RUN DATE]` rebuilds everything with no LLM calls. Word files come from `quantagents/eval/md_docx.py` (standard library only; `python -m quantagents.eval.md_docx <src.md> <out.docx>`); charts are SVG (no matplotlib). After editing a doc, rerun the pack to refresh its .docx.

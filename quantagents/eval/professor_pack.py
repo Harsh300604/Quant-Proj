@@ -24,7 +24,7 @@ from quantagents.paths import Paths
 REPO = Path(__file__).resolve().parents[2]
 RUNS = ["proto20_paper_baseline", "proto20_paper_enhanced", "proto20_paper_enh_hidden"]
 SAMPLE = ("proto20_paper_enhanced", "2022-06-01")
-DOCS = ["docs/proto20_professor_recap.md", "docs/proto20_summary.md", "docs/proto20_student_guide.md", "docs/proto20_problems_log.md"]
+DOCS = ["docs/proto20_professor_recap.md", "docs/proto20_mentor_briefing.md","docs/proto20_summary.md", "docs/proto20_student_guide.md", "docs/proto20_problems_log.md"]
 
 # (label, detail, kind): kind "py" = Python (no AI), "ai" = an LLM call, "data" = stored data
 STEPS = [
@@ -89,6 +89,7 @@ Made from stored runs by `python -m quantagents.eval.professor_pack`; no AI call
 | file | what it is |
 |---|---|
 | proto20_professor_recap.docx | a two-page recap of the whole project for the professor |
+| proto20_mentor_briefing.docx | for the mentor: the numbers in plain words, reading order, AI usage and costs, what changed from the student's version |
 | proto20_summary.docx | the one-document summary (from docs/proto20_summary.md) |
 | results.md / results.csv | every number: returns, risk, active metrics with 90% intervals, Carhart alpha, ENT/ENB, view accuracy |
 | growth_of_1.svg / growth_of_1.html | growth of $1 for the three runs, the benchmark, QQQ and ^NDX |
