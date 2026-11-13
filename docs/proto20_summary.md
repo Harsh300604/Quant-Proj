@@ -63,6 +63,24 @@ A picture version is in `architecture.svg`. **The AI never does maths:** every n
 | Enhanced | 0.40% | −0.05 (−1.17 to +0.82) | −0.05% (−0.22) | 6.1% | 0.24% | 0 |
 | Enhanced, names hidden | 0.55% | −0.24 (−1.25 to +0.64) | −0.15% (−0.58) | 6.6% | 0.26% | 0 |
 
+**What each column means:**
+- **series / version:** the portfolio. Baseline, Enhanced and Enhanced (names hidden) are the AI versions. The benchmark holds the same 20 companies at market-cap weight. QQQ and ^NDX (the NASDAQ-100 index) are for reference only.
+- **total return:** growth over the whole period, after trading costs. +42.61% means $1 grew to $1.4261.
+- **per year (CAGR):** compound annual growth rate, the total return expressed as a steady yearly rate.
+- **2021 / 2022 / 2023:** the return in each calendar year.
+- **volatility:** annualised standard deviation of daily returns, meaning how much the value jumps around.
+- **Sharpe:** annualised return above the 3-month T-bill rate, divided by volatility. It measures return per unit of total risk; higher is better.
+- **Sortino:** like Sharpe, but it counts only downside volatility (the falls).
+- **max drawdown:** the largest fall from a previous peak to a later low. Here it was the 2022 sell-off.
+- **Calmar:** CAGR divided by the size of the max drawdown. It measures return per unit of worst fall.
+- **tracking error:** annualised standard deviation of the daily return difference between the portfolio and the benchmark. It measures how far the portfolio strays from the benchmark.
+- **information ratio (90% interval):** annualised active return (portfolio minus benchmark) divided by tracking error. It is the main skill measure. The bracket is a 90% range from a block bootstrap (21-day blocks, 2,000 resamples); a range that includes 0 means no significant skill.
+- **active Carhart alpha per year (t):** the annual alpha of the daily active return in a Carhart 4-factor regression (market, size, value, momentum). It is the return the factors can't explain. t is the Newey-West t-statistic, where roughly |t| ≥ 2 counts as significant.
+- **turnover a month:** the average share of the portfolio traded at each monthly rebalance.
+- **trading costs (3 years):** total transaction costs (0.1% of the value traded) as a share of the portfolio over the whole period.
+- **red flags:** automatic warnings for results that look too good to be true or break a rule (for example a Sharpe above 2, a rule breach, or data read after the decision time).
+- **–:** not applicable; active measures exist only for the AI versions measured against the benchmark.
+
 **Diversification** (average over the 36 months): ENT (entropy of weights) is 2.45 to 2.46 for the three versions and 2.47 for the benchmark. ENB (effective number of bets) is 1.79 to 1.80, against 1.76 for the benchmark.
 
 **What this means:**
