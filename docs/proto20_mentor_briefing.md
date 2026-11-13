@@ -2,6 +2,49 @@
 
 _For the mentor (no finance background needed). 13 November 2026. It answers five questions: what the numbers mean, which files to use, what to share and show, how the AI was used and what it cost, and what we improved over the student's own version._
 
+## At a glance: how well did it perform?
+
+**In one sentence:** it performed exactly as well as simply holding the same 20 companies, no better and no worse. As an investment strategy it showed no skill; as a test, it worked well.
+
+**As an investment: a tie.** Here is what $1 invested on 4 January 2021 was worth on 29 December 2023:
+
+| | $1 became | difference from just holding the 20 |
+|---|---:|---:|
+| Just holding the 20 companies (benchmark) | $1.428 | – |
+| AI baseline | $1.426 | −0.2 points |
+| AI enhanced | $1.429 | +0.1 points |
+| AI with names hidden | $1.426 | −0.3 points |
+| NASDAQ-100 index (reference) | $1.325 | −10 points |
+
+- **The AI added nothing and lost nothing.** Differences of 0.1 to 0.3 points over three years are noise.
+- **Risk was the same as the benchmark's.** All versions fell about 40% at the worst point in 2022, and all have a Sharpe ratio of about 0.49.
+- **The skill score (information ratio) is about zero,** and its range of uncertainty (about −1.0 to +0.8) includes zero.
+- **The AI's opinions were barely better than guessing.** Its "sells" did lag slightly, but its "buys" lagged too. It was right about 50 to 60% of the time, close to a coin toss.
+- **Beating the NASDAQ-100 by 10 points is not an AI achievement.** The 20 biggest companies simply did well in 2021 to 2023; holding them with no AI at all gives the same result.
+- **The paper's ~300% did not appear** under our leak-proof conditions.
+
+**Why it was a tie:** the AI was very cautious.
+- The baseline kept about 78% of its decisions at the normal weight.
+- The enhanced version's confidence was mostly 0.2 or lower, out of 1.
+- The rules (0× to 2× per company, sectors within 2 points) also keep any portfolio close to the benchmark.
+
+So it never made big bets: no big wins and no big losses.
+
+**As a project: it did its job well.**
+
+| goal | result |
+|---|---|
+| Fair test, with no future information | 0 violations in 108 monthly decisions; leak tests pass |
+| The AI never does maths | Python computed every number |
+| No broken AI answers | 0 failures in the final runs |
+| Rules always followed | 0 rule breaks, 0 red flags |
+| Realistic, low trading | costs of 0.24 to 0.30% over 3 years |
+| Repeatable | saved answers make every run exactly repeatable |
+| Within budget | $25.57 of $40 |
+| Checked | 456 automated tests; 24 issues found and logged |
+
+**The line for the student:** "We built a trustworthy test of AI fund managers. Under fair, leak-proof rules, the AI committee behaved responsibly but matched the market rather than beating it, which suggests the paper's huge gains may depend on conditions our test removes." A clean "no edge found" from a fair test is more credible than a big win from a test that might be leaking future information.
+
 ## 1. The numbers in plain words
 
 **The one-sentence story:** we asked AI "analysts" to run a portfolio of 20 big tech-heavy companies for three years, under fair rules, and they did exactly as well as simply holding those 20 companies, no better and no worse.
